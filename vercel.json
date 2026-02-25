@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/webhook/stripe",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/create-checkout-session",
+      "destination": "/api/index.js"
+    }
+  ]
+}

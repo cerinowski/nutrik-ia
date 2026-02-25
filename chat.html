@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nutrik.IA - Chat</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body>
+
+    <div class="chat-container">
+
+        <!-- Header -->
+        <div class="chat-header">
+            <div class="avatar">nk</div>
+            <div class="chat-header-info">
+                <h2>Nutrik.IA</h2>
+                <p><span class="status-dot"></span> Online</p>
+            </div>
+            <div class="credits-badge" style="display: flex; gap: 8px; align-items: center;">
+                <span id="credits-display" title="Seus Créditos" style="display: flex; align-items: center;">
+                    <i data-lucide="zap"
+                        style="width: 14px; height: 14px; display: inline-block; margin-right: 2px;"></i>
+                    <span id="credit-count">...</span> Créditos
+                </span>
+                <a href="plans.html" class="upgrade-btn"
+                    style="background: var(--primary); color: #000; padding: 4px 8px; border-radius: 12px; font-size: 11px; text-decoration: none; font-weight: 700; border: 1px solid #000;">Assinar
+                    Premium</a>
+                <i data-lucide="log-out" id="logout-btn"
+                    style="width: 16px; height: 16px; cursor: pointer; color: #DC2626; margin-left: 4px;"
+                    title="Sair"></i>
+            </div>
+        </div>
+
+        <!-- Messages Area -->
+        <div class="chat-messages" id="chat-messages">
+
+            <!-- Welcome Message -->
+            <div class="msg ai">
+                <div class="msg-bubble">
+                    Olá! Eu sou o <strong>Nutrik.IA</strong>, seu parceiro inteligente de saúde e nutrição. 🥗🤖<br><br>
+                    <strong>Como posso te ajudar hoje?</strong><br>
+                    🔥 <strong>Calcular sua Taxa Metabólica:</strong> Me mande seu peso, altura e idade.<br>
+                    📸 <strong>Analisar suas Refeições:</strong> Tire uma foto do seu prato e eu listarei as calorias e
+                    macronutrientes do momento (custa 5 créditos).<br>
+                    🤔 <strong>Tirar Dúvidas:</strong> Me pergunte qualquer coisa sobre dietas, substituições de
+                    alimentos ou dicas de treino!<br><br>
+                    <em>Pode falar comigo normalmente, estou aqui para te ajudar a atingir seus objetivos de forma
+                        prática!</em>
+                </div>
+                <div class="msg-time">Agora</div>
+            </div>
+
+        </div>
+
+        <!-- Input Area -->
+        <div class="chat-input-area">
+            <button class="icon-btn" title="Câmera" id="camera-btn">
+                <i data-lucide="camera"></i>
+            </button>
+            <button class="icon-btn" title="Anexar" id="attach-btn">
+                <i data-lucide="paperclip"></i>
+            </button>
+
+            <input type="file" id="file-input" accept="image/*" style="display: none;">
+
+            <div class="chat-input-wrapper">
+                <div id="image-preview-container" style="display: none; align-items: center; margin-right: 8px;">
+                    <img id="image-preview" src=""
+                        style="height: 30px; width: 30px; object-fit: cover; border-radius: 4px;">
+                    <i data-lucide="x" id="remove-image-btn"
+                        style="width: 14px; height: 14px; cursor: pointer; margin-left: 4px; color: #DC2626;"></i>
+                </div>
+                <input type="text" id="chat-input" class="chat-input"
+                    placeholder="Digite uma mensagem ou anexe imagem..."
+                    style="background: transparent; border: none; flex: 1; padding: 12px 0; color: #FFF; outline: none; box-shadow: none;">
+            </div>
+
+            <button id="send-btn" class="send-btn">
+                <i data-lucide="send" style="width: 20px; height: 20px;"></i>
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        const messagesContainer = document.getElementById('chat-messages');
+        const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        let credits = 0; // Default until loaded from DB
+
+        // Load history from browser storage
+        let chatHistory = JSON.parse(localStorage.getItem('nutrik_chat_history')) || [];
+
+        // Restore history on page load
+        if (chatHistory.length > 0) {
+            messagesContainer.innerHTML = ''; // Remove default welcome message
+            chatHistory.forEach(msg => {
+                appendMessage(msg.text, msg.role === 'user', false, false);
+            });
+        }
+
+        // Scroll to bottom automatically
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+        function formatMarkdown(text) {
+            let html = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); // Bold
+            html = html.replace(/\*(.*?)\*/g, '<em>$1</em>'); // Italic
+            html = html.replace(/\n/g, '<br>'); // Line breaks
+            return html;
+        }
+
+        function appendMessage(text, isUser = true, isImageAnalysis = false, saveToHistory = true, rawTextForHistory = null) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `msg ${isUser ? 'user' : 'ai'}`;
+
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            const formattedText = isUser ? text : formatMarkdown(text);
+            let bubbleHtml = `<div class="msg-bubble">${formattedText}</div>`;
+
+            // Save to memory
+            if (saveToHistory) {
+                const textToSave = rawTextForHistory !== null ? rawTextForHistory : text;
+                chatHistory.push({ role: isUser ? 'user' : 'model', text: textToSave });
+                localStorage.setItem('nutrik_chat_history', JSON.stringify(chatHistory));
+            }
+
+            // Deduct credits for AI responses containing images ONLY
+            if (!isUser && isImageAnalysis) {
+                // Deduct locally for instant UI update
+                credits -= 5;
+                if (credits < 0) credits = 0;
+                document.getElementById('credit-count').textContent = credits;
+
+                // Update Supabase Database
+                if (currentUser) {
+                    supabaseClient
+                        .from('profiles')
+                        .update({ credits: credits })
+                        .eq('id', currentUser.id)
+                        .then(({ error }) => {
+                            if (error) console.error("Erro ao atualizar os créditos no banco:", error);
+                        });
+                }
+            }
+
+            msgDiv.innerHTML = `
+                ${bubbleHtml}
+                <div class="msg-time">${time}</div>
+            `;
+
+            messagesContainer.appendChild(msgDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        const attachBtn = document.getElementById('attach-btn');
+        const cameraBtn = document.getElementById('camera-btn');
+        const fileInput = document.getElementById('file-input');
+        const imagePreviewContainer = document.getElementById('image-preview-container');
+        const imagePreview = document.getElementById('image-preview');
+        const removeImageBtn = document.getElementById('remove-image-btn');
+
+        let currentImageBase64 = null;
+
+        // Helper to resize image using Canvas
+        function resizeImage(file, maxSize = 800) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height && width > maxSize) {
+                            height *= maxSize / width;
+                            width = maxSize;
+                        } else if (height > maxSize) {
+                            width *= maxSize / height;
+                            height = maxSize;
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        // Save as compressed JPEG
+                        resolve(canvas.toDataURL('image/jpeg', 0.8));
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Handle Image Attachment
+        attachBtn.addEventListener('click', () => fileInput.click());
+        cameraBtn.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                // Add tiny loading block in preview
+                imagePreview.src = '';
+                imagePreviewContainer.style.display = 'flex';
+                // Compress before generating final Base64 memory usage
+                currentImageBase64 = await resizeImage(file);
+                imagePreview.src = currentImageBase64;
+            }
+        });
+
+        removeImageBtn.addEventListener('click', () => {
+            currentImageBase64 = null;
+            imagePreview.src = '';
+            imagePreviewContainer.style.display = 'none';
+            fileInput.value = '';
+        });
+
+        async function handleSend() {
+            const text = chatInput.value.trim();
+            const imageToSend = currentImageBase64;
+
+            if (!text && !imageToSend) return;
+
+            // 1. Mostrar mensagem do usuário
+            let userContent = text;
+            let rawHistoryText = text || "[Enviou uma imagem]";
+
+            if (imageToSend) {
+                userContent = `<img src="${imageToSend}" class="msg-image" style="max-width: 100%; border-radius: 8px; margin-bottom: 8px;"><br>${text}`;
+            }
+            appendMessage(userContent, true, false, true, rawHistoryText);
+
+            // Clear inputs
+            chatInput.value = '';
+
+            // Manually clear image instead of clicking the icon
+            currentImageBase64 = null;
+            imagePreview.src = '';
+            imagePreviewContainer.style.display = 'none';
+            fileInput.value = '';
+
+            // Add loading indicator
+            const loadingId = 'loading-' + Date.now();
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'msg ai';
+            loadingDiv.id = loadingId;
+            loadingDiv.innerHTML = `<div class="msg-bubble" style="opacity: 0.7;">Analisando com Nutrik.IA <span class="status-dot"></span></div>`;
+            messagesContainer.appendChild(loadingDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            try {
+                // Call Real backend for Gemini
+                console.log("Iniciando fetch para /api/chat");
+                const payload = {
+                    message: text,
+                    imageBase64: imageToSend,
+                    // Send all history except the very last message which is the current one we just appended
+                    history: chatHistory.slice(0, -1)
+                };
+                console.log(`Payload montado. Tamanho aprox: ${JSON.stringify(payload).length} bytes`);
+
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    console.error("ERRO DETALHADO DA API:", data);
+                    throw new Error(`Falha: ${data.details || response.statusText}`);
+                }
+
+                console.log("Fetch respondido. Status:", response.status);
+                console.log("Dados recebidos da IA:", data);
+
+                // Remove loading
+                document.getElementById(loadingId).remove();
+
+                // Append AI real response
+                appendMessage(data.reply, false, !!imageToSend);
+
+            } catch (error) {
+                document.getElementById(loadingId).remove();
+
+                let errorMsg = "Desculpe, ocorreu um erro ao conectar com a IA. Verifique o console interno (F12).";
+                if (error.message.includes('429') || error.message.includes('quota') || error.message.includes('RESOURCE_EXHAUSTED')) {
+                    errorMsg = "Opa! O cérebro da IA está respirando no momento (limite de uso grátis do Google atingido). Por favor, espere uns 20 segundinhos e tente novamente! ⏳";
+                }
+
+                appendMessage(errorMsg, false);
+                console.error("ERRO GRAVE NO CHAT:", error);
+            }
+        }
+
+        // Clique no botão
+        sendBtn.addEventListener('click', handleSend);
+
+        // Enter no teclado
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleSend();
+        });
+
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script>
+        // Use user's session
+        let currentUser = null;
+
+        supabaseClient.auth.onAuthStateChange(async (event, session) => {
+            if (!session) {
+                document.body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#000;color:#fff;font-family:sans-serif;text-align:center;"><h2>Sessão Expirada ou Inválida</h2><p>Houve um erro de comunicação ou o seu login expirou.</p><a href="index.html" style="padding:10px 20px;background:#C1FC23;color:#000;border-radius:8px;text-decoration:none;margin-top:20px;font-weight:bold;">Voltar e Fazer Login</a></div>';
+                return;
+            }
+
+            if (!currentUser) { // Initialize profile only once
+                currentUser = session.user;
+
+                // set avatar initials
+                const email = currentUser.email;
+                document.querySelector('.avatar').textContent = email.substring(0, 2).toUpperCase();
+
+                // Load real credits from database
+                const { data, error } = await supabaseClient
+                    .from('profiles')
+                    .select('credits')
+                    .eq('id', currentUser.id)
+                    .single();
+
+                if (!error && data) {
+                    credits = data.credits;
+                } else {
+                    console.log("No profile found. Creating a new one (45 credits)...");
+                    credits = 45;
+                    await supabaseClient.from('profiles').insert([{ id: currentUser.id, credits: 45 }]);
+                }
+
+                document.getElementById('credit-count').textContent = credits;
+            }
+        });
+
+        // Logout
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            await supabaseClient.auth.signOut();
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nutrik.IA - Planos</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body>
+
+    <div class="plans-wrapper">
+        <div class="plans-header">
+            <div class="logo-container" style="font-size: 32px; margin-bottom: 24px;">
+                <span class="logo-text">nutrik</span>
+                <span class="logo-bubble" style="font-size: 32px; padding: 2px 10px 4px 8px;">.ia</span>
+            </div>
+            <h1 class="plans-title">Desbloqueie seu Potencial</h1>
+            <p class="plans-subtitle">Tenha um nutricionista de bolso 24h analisando pratos e te guiando rumo ao seu
+                objetivo.</p>
+        </div>
+
+        <div class="plans-cards">
+
+            <!-- Card Free -->
+            <div class="plan-card">
+                <div class="plan-card-header">
+                    <h2 class="plan-name">Básico</h2>
+                    <p class="plan-desc">Comece sua jornada com ferramentas essenciais.</p>
+                </div>
+
+                <br>
+
+                <div class="price">
+                    <span class="currency">R$</span>
+                    <span class="amount">0</span>
+                    <span class="period">/mês</span>
+                </div>
+
+                <br>
+
+                <div class="plan-features">
+                    <div class="feature-item"><i data-lucide="check-circle-2"></i> Cálculo de Taxa Metabólica</div>
+                    <div class="feature-item"><i data-lucide="check-circle-2"></i> 1 Dieta Personalizada inicial</div>
+                    <div class="feature-item"><i data-lucide="check-circle-2"></i> <strong>50 Créditos/mês</strong> (+/-
+                        10 leituras)</div>
+                    <div class="feature-item disabled"><i data-lucide="x"></i> Adaptação de cardápio pós-humor</div>
+                    <div class="feature-item disabled"><i data-lucide="x"></i> Fotos e análises Ilimitadas</div>
+                </div>
+
+                <a href="chat.html" class="btn-outline" style="margin-top: auto;">Sair e Voltar pro Chat</a>
+            </div>
+
+            <!-- Card Pro (Destaque) -->
+            <div class="plan-card pro">
+                <div class="popular-badge">✨ Nutrik.IA Premium</div>
+                <div class="plan-card-header">
+                    <h2 class="plan-name pro-text">Acesso Total</h2>
+                    <p class="plan-desc">Evolução garantida e sem limitações diárias.</p>
+                </div>
+
+                <br>
+
+                <div class="price">
+                    <span class="currency">R$</span>
+                    <span class="amount">57</span>
+                    <span class="period">/mês</span>
+                </div>
+
+                <br>
+
+                <div class="plan-features">
+                    <div class="feature-item"><i data-lucide="check-circle-2"></i> Tudo do plano básico incluso</div>
+                    <div class="feature-item"><i data-lucide="check-circle-2"></i> <strong>Passe Livre (Créditos
+                            Ilimitados)</strong></div>
+                    <div class="feature-item"><i data-lucide="check-circle-2"></i> Radar de Reações e Humor pós-refeição
+                    </div>
+                    <div class="feature-item"><i data-lucide="check-circle-2"></i> Auto-Adaptação de Cardápio (A IA
+                        aprende seu gosto)</div>
+                    <div class="feature-item"><i data-lucide="check-circle-2"></i> Suporte prioritário com tempos de
+                        resposta 3x menores</div>
+                </div>
+
+                <a href="#" id="btn-premium" class="btn-primary"
+                    style="margin-top: auto; font-size: 18px; padding: 18px; text-align: center; display: block;">Assinar
+                    Premium</a>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script>
+        let currentUser = null;
+
+        async function checkSession() {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) {
+                window.location.href = 'index.html';
+                return;
+            }
+            currentUser = session.user;
+        }
+        checkSession();
+
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_OUT' || !session) {
+                window.location.href = 'index.html';
+            }
+        });
+
+        // Handle Stripe Checkout
+        const btnPremium = document.getElementById('btn-premium');
+        if (btnPremium) {
+            btnPremium.addEventListener('click', async (e) => {
+                e.preventDefault();
+                if (!currentUser) {
+                    alert('Por favor, faça login primeiro!');
+                    return;
+                }
+
+                btnPremium.textContent = 'Aguarde...';
+                btnPremium.style.pointerEvents = 'none';
+                btnPremium.style.opacity = '0.7';
+
+                try {
+                    const response = await fetch('/api/checkout-session', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            email: currentUser.email,
+                            userId: currentUser.id
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Erro ao gerar pagamento');
+                    }
+
+                    const { url } = await response.json();
+
+                    // Redirect to Stripe Checkout
+                    if (url) {
+                        window.location.href = url;
+                    } else {
+                        throw new Error('URL de checkout não retornada.');
+                    }
+                } catch (error) {
+                    console.error('Erro de Checkout:', error);
+                    alert('Erro ao carregar o pagamento. Tente novamente mais tarde.');
+                    btnPremium.textContent = 'Assinar Premium';
+                    btnPremium.style.pointerEvents = 'auto';
+                    btnPremium.style.opacity = '1';
+                }
+            });
+        }
+
+    </script>
+</body>
+
+</html>
