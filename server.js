@@ -4,10 +4,10 @@ const cors = require('cors');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy_key');
-const { GoogleGenAI } = require('@google/genai');
+const OpenAI = require('openai');
 
-// Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || 'dummy_gemini_key' });
+// Initialize OpenAI Client
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'dummy_openai_key' });
 
 // Supabase Admin Client (to bypass RLS for webhook updates)
 // We will use the service_role key for this.
