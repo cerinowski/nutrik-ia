@@ -12,6 +12,22 @@
     {
       "source": "/create-checkout-session",
       "destination": "/api/index.js"
+    },
+    {
+      "source": "/(.*\\.html)",
+      "destination": "/$1"
+    },
+    {
+      "source": "/(.*\\.css)",
+      "destination": "/$1"
+    },
+    {
+      "source": "/(.*\\.js)",
+      "destination": "/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
