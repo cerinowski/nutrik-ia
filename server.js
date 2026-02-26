@@ -85,8 +85,10 @@ app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (re
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
-// Serve static files from the current directory (Nutrik-IA frontend)
-app.use(express.static(path.join(__dirname)));
+// Serve static files (handled by Vercel in production)
+if (process.env.NODE_ENV !== 'production') {
+    app.use(express.static(path.join(__dirname)));
+}
 
 // Health check route
 app.get('/api/health', (req, res) => {
@@ -221,10 +223,7 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
-// Fallback to index.html for unknown routes (SPA like behavior)
-app.use((req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
+// Vercel handles static routing
 
 // Start Server locally if not required as a module (Serverless)
 if (require.main === module) {
