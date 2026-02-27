@@ -162,7 +162,7 @@ app.post('/api/chat', async (req, res) => {
 
         const requestBody = {
             contents: contents,
-            systemInstruction: {
+            system_instruction: {
                 parts: [{ text: "Você é o Nutrik.IA, assistente nutricional parceiro. Analise fotos, estime gramas e informe macros exatos usando <strong> em números. Seja amigável e técnico." }]
             },
             generationConfig: {
