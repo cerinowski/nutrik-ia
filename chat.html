@@ -119,8 +119,9 @@
             if (saveToHistory) {
                 const textToSave = rawTextForHistory !== null ? rawTextForHistory : text;
                 chatHistory.push({ role: isUser ? 'user' : 'model', text: textToSave });
-                
+
                 // Update Supabase DB
+                // WE ONLY UPDATE HERE DURING ACTIVE TYPING, NOT ON INITIAL LOAD
                 if (typeof currentUser !== 'undefined' && currentUser) {
                     supabaseClient.from('profiles').update({ chat_history: chatHistory }).eq('id', currentUser.id)
                         .then(({ error }) => { if (error) console.error("History sync err:", error) });
@@ -355,6 +356,7 @@
                 if (chatHistory.length > 0) {
                     messagesContainer.innerHTML = ''; // Remove default welcome message
                     chatHistory.forEach(msg => {
+                        // Pass saveToHistory = false to prevent re-uploading the loaded history
                         appendMessage(msg.text, msg.role === 'user', false, false);
                     });
                 }
@@ -364,6 +366,7 @@
         // Logout
         document.getElementById('logout-btn').addEventListener('click', async () => {
             await supabaseClient.auth.signOut();
+            window.location.href = 'index.html'; // Redirect to login
         });
     </script>
 </body>
