@@ -137,110 +137,75 @@ app.post('/api/checkout-session', async (req, res) => {
 
 // Nutrik.IA Chat Endpoint (Gemini Integration)
 app.post('/api/chat', async (req, res) => {
-    console.log('[API CHAT] Recebendo requisição...');
+    console.log('[API CHAT] Recebendo requisição com Native SDK...');
     try {
         const { message, imageBase64, history } = req.body;
-        console.log(`[API CHAT] Mensagem recebida: "${message}"`);
-        console.log(`[API CHAT] Tem imagem? ${!!imageBase64}`);
 
         if (!message && !imageBase64) {
-            console.log('[API CHAT] Erro: Sem mensagem ou imagem');
             return res.status(400).json({ error: 'Mensagem ou imagem é obrigatória' });
         }
 
-        // Initialize multi-turn chat format
-        let messages = [];
+        // Initialize model (gemini-1.5-flash is extremely stable for vision)
+        const model = genAI.getGenerativeModel({
+            model: "gemini-1.5-flash",
+            systemInstruction: `Você é o Nutrik.IA, um assistente nutricional parceiro de saúde do usuário. Responda de forma amigável e técnica.
+            MUITO IMPORTANTE: Se o usuário enviar uma foto de comida, você DEVE listar as gramas estimadas de cada alimento e o total de Macronutrientes (Prot, Carb, Gord) e Calorias. Use <strong> para destacar valores.`
+        });
 
-        // System prompt context for the AI persona
-        const systemPrompt = `Você é o Nutrik.IA, um assistente nutricional parceiro de saúde do usuário.
-        Responda de forma amigável, ágil, assertiva e motivadora.
-        MUITO IMPORTANTE: Se o usuário calcular Taxa Metabólica Basal fornecendo peso/altura/idade, calcule usando Harris-Benedict e dê a faixa de calorias ideal.
-        MUITO IMPORTANTE: Se o usuário enviar uma foto de comida, VOCÊ DEVE OBRIGATORIAMENTE listar as estimativas visuais de quantidade (em gramas) para CADA alimento identificado no prato. Em seguida, resuma EXATAMENTE os macronutrientes do prato inteiro (Proteínas, Carboidratos e Gorduras em gramas), além do Total de Calorias da refeição. 
-        Force uma estimativa técnica e realista baseada no tamanho da porção visualizada.
-        Formate a resposta destacando os números e nomes (ex: <strong>150g de Frango</strong>, <strong>30g Proteína</strong>, <strong>450 kcal</strong>). Mantenha o texto limpo, sem markdown excessivo.`;
-
-        messages.push({ role: 'system', content: systemPrompt });
-
+        // Format history
+        let contents = [];
         if (history && Array.isArray(history)) {
-            history.forEach(h => {
-                if (h.text) {
-                    messages.push({
-                        role: h.role === 'model' || h.role === 'assistant' ? 'assistant' : 'user',
-                        content: h.text
-                    });
-                }
-            });
+            contents = history.map(h => ({
+                role: h.role === 'model' || h.role === 'assistant' ? 'model' : 'user',
+                parts: [{ text: h.text }]
+            }));
         }
 
-        let userContent = [];
+        // Current user message parts
+        let currentParts = [];
 
-        // Add user message
-        if (message) {
-            userContent.push({ type: 'text', text: message });
-        } else {
-            userContent.push({ type: 'text', text: "Analise a imagem desta refeição e me dê uma estimativa dos macronutrientes." });
-        }
+        // Add text instruction
+        const promptText = message || "Analise esta refeição detalhadamente, dando gramas e macros.";
+        currentParts.push({ text: promptText });
 
-        // If there is an image, attach it to the prompt
+        // Add image if present
         if (imageBase64) {
-            try {
-                const matches = imageBase64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
-
-                if (matches && matches.length === 3) {
-                    userContent.push({
-                        type: 'image_url',
-                        image_url: { url: imageBase64 }
-                    });
-                } else {
-                    return res.status(400).json({ error: 'Formato de imagem inválido' });
-                }
-            } catch (e) {
-                return res.status(400).json({ error: 'Falha ao decodificar a imagem' });
+            const matches = imageBase64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+            if (matches && matches.length === 3) {
+                currentParts.push({
+                    inlineData: {
+                        data: matches[2],
+                        mimeType: matches[1]
+                    }
+                });
             }
         }
 
-        messages.push({ role: 'user', content: userContent });
-
-        const apiKey = process.env.GEMINI_API_KEY || 'dummy_gemini_key';
-        console.log(`[API CHAT] Usando API Key iniciada com: ${apiKey ? apiKey.substring(0, 5) : 'MISSING'}`);
-
-        const fetchResponse = await fetch(`${geminiBaseUrl}chat/completions`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
+        const chat = model.startChat({
+            history: contents,
+            generationConfig: {
+                maxOutputTokens: 1000,
+                temperature: 0.4,
             },
-            body: JSON.stringify({
-                model: 'gemini-2.5-flash',
-                messages: messages,
-                temperature: 0.5,
-                max_tokens: 1000
-            })
         });
 
-        const data = await fetchResponse.json();
+        const result = await chat.sendMessage(currentParts);
+        const responseText = result.response.text();
 
-        if (!fetchResponse.ok) {
-            console.error('[API CHAT] Erro Gemini:', data);
-            return res.status(fetchResponse.status).json({
-                error: 'Erro na API da IA',
-                details: data.error?.message || JSON.stringify(data)
+        res.json({ reply: responseText });
+
+    } catch (error) {
+        console.error('Error in Native Gemini Chat:', error);
+
+        if (error.message.includes('429') || error.message.toLowerCase().includes('limit')) {
+            return res.status(429).json({
+                error: 'Opa! O cérebro da IA está respirando no momento (limite de uso grátis atingido). Por favor, espere uns 60 segundos e tente novamente! ⏳'
             });
         }
 
-        if (!data.choices || !data.choices[0]) {
-            console.error('[API CHAT] Resposta vazia do Gemini:', data);
-            return res.status(500).json({ error: 'Resposta vazia da IA' });
-        }
-
-        res.json({ reply: data.choices[0].message.content });
-
-    } catch (error) {
-        console.error('Error in Gemini Chat:', error);
         res.status(500).json({
-            error: 'Erro ao processar sua solicitação com a inteligência artificial',
-            details: error.message,
-            stack: error.stack
+            error: 'Erro técnico ao conectar com a IA. Tente atualizar a página.',
+            details: error.message
         });
     }
 });
