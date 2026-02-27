@@ -401,10 +401,10 @@
                                 chatHistory = parseHistory;
                             }
                         } else {
-                            console.log("No profile found or RLS blocked read. Creating/falling back (45 credits)...");
-                            credits = 45;
+                            console.log("No profile found or RLS blocked read. Creating/falling back (50 credits)...");
+                            credits = 50;
                             // Attempt insert, but don't crash if RLS blocks insert
-                            await supabase.from('profiles').insert([{ id: currentUser.id, credits: 45, chat_history: [] }]).catch(e => console.warn(e));
+                            await supabase.from('profiles').insert([{ id: currentUser.id, credits: 50, chat_history: [] }]).catch(e => console.warn(e));
                         }
 
                         const creditCountEl = document.getElementById('credit-count');
