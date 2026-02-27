@@ -87,7 +87,7 @@ app.use(express.json({ limit: '50mb' }));
 
 // Serve static files (handled by Vercel in production)
 if (process.env.NODE_ENV !== 'production') {
-    app.use(express.static(path.join(__dirname)));
+    app.use(express.static(path.join(__dirname, '../public')));
 }
 
 // Health check route
