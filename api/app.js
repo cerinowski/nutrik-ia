@@ -173,25 +173,18 @@ app.post('/api/chat', async (req, res) => {
         }
 
         let userContent = [];
+        let combinedText = message || "Analise a imagem desta refeição e me dê uma estimativa dos macronutrientes.";
 
-        // Add user message
-        if (message) {
-            userContent.push({ type: 'text', text: message });
-        } else {
-            userContent.push({ type: 'text', text: "Analise a imagem desta refeição e me dê uma estimativa dos macronutrientes." });
-        }
-
-        // If there is an image, attach it to the prompt
+        // If there is an image, attach it and strengthen the request
         if (imageBase64) {
             try {
                 const matches = imageBase64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
 
                 if (matches && matches.length === 3) {
-                    // Reinforce the technical requirement inside the same message as the image
-                    userContent.push({
-                        type: 'text',
-                        text: "Analise esta imagem detalhadamente. Liste os alimentos, suas gramas estimadas e o total de Carboidratos, Proteínas e Gorduras em gramas. É OBRIGATÓRIO dar números estimados."
-                    });
+                    // Combine previous text with the strict vision instruction
+                    combinedText += "\n\nAnalise esta imagem detalhadamente. Liste os alimentos, suas gramas estimadas e o total de Carboidratos, Proteínas e Gorduras em gramas. É OBRIGATÓRIO dar números estimados. Formate os macros com <strong>.";
+
+                    userContent.push({ type: 'text', text: combinedText });
                     userContent.push({
                         type: 'image_url',
                         image_url: { url: imageBase64 }
@@ -202,13 +195,15 @@ app.post('/api/chat', async (req, res) => {
             } catch (e) {
                 return res.status(400).json({ error: 'Falha ao decodificar a imagem' });
             }
+        } else {
+            userContent.push({ type: 'text', text: combinedText });
         }
 
         messages.push({ role: 'user', content: userContent });
 
-        console.log("[OPENAI SDK PAYLOAD]:", JSON.stringify(messages, null, 2));
+        const apiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_KEY || process.env.OPENAI_API_KEY;
+        console.log(`[API CHAT] Usando API Key iniciada com: ${apiKey ? apiKey.substring(0, 5) : 'MISSING'}`);
 
-        const apiKey = process.env.GEMINI_API_KEY || 'dummy_gemini_key';
         const fetchResponse = await fetch(`${geminiBaseUrl}chat/completions`, {
             method: 'POST',
             headers: {
@@ -216,9 +211,9 @@ app.post('/api/chat', async (req, res) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'gemini-1.5-flash',
+                model: 'models/gemini-1.5-flash', // Keeping it simple, can try models/ if this fails
                 messages: messages,
-                temperature: 0.3, // Lower temperature for more consistent technical estimates
+                temperature: 0.3,
                 max_tokens: 1000
             })
         });
@@ -226,8 +221,16 @@ app.post('/api/chat', async (req, res) => {
         const data = await fetchResponse.json();
 
         if (!fetchResponse.ok) {
-            console.error('[API CHAT] Erro do Gemini:', data);
-            throw new Error(`Gemini Error: ${data.error?.message || JSON.stringify(data)}`);
+            console.error('[API CHAT] Erro Crítico do Gemini:', JSON.stringify(data, null, 2));
+            return res.status(fetchResponse.status).json({
+                error: 'Erro na API da Gemini',
+                details: data.error?.message || JSON.stringify(data)
+            });
+        }
+
+        if (!data.choices || !data.choices[0]) {
+            console.error('[API CHAT] Resposta vazia do Gemini:', data);
+            return res.status(500).json({ error: 'Resposta vazia da IA' });
         }
 
         res.json({ reply: data.choices[0].message.content });
