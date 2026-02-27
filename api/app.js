@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy_key');
+const fetch = require('node-fetch');
 
 // Supabase Admin Client
 const supabaseUrl = process.env.SUPABASE_URL || 'https://dummy.supabase.co';
@@ -15,6 +16,16 @@ const port = process.env.PORT || 3000;
 
 const supabaseKey = process.env.SUPABASE_KEY || 'dummy_key';
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Debug Route to verify ENV and Status
+app.get('/api/debug', (req, res) => {
+    res.json({
+        status: 'online',
+        has_gemini_key: !!process.env.GEMINI_API_KEY,
+        node_version: process.version,
+        env: process.env.NODE_ENV || 'development'
+    });
+});
 
 // Webhook endpoint needs raw body for Stripe signature verification
 app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
@@ -60,7 +71,7 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
 if (process.env.NODE_ENV !== 'production') {
-    app.use(express.static(path.join(__dirname, '../public')));
+    app.use(express.static(path.join(__dirname, '../')));
 }
 
 app.get('/api/health', (req, res) => {
@@ -98,20 +109,25 @@ app.post('/api/checkout-session', async (req, res) => {
     }
 });
 
-// Nutrik.IA Chat Endpoint (Direct Google API Fetch Version)
+// Nutrik.IA Chat Endpoint (Universal Direct Fetch Version)
 app.post('/api/chat', async (req, res) => {
-    console.log('[API CHAT] Recebendo requisição (Direct Google Fetch)...');
+    console.log('[API CHAT] Chamando Google API diretamente...');
     try {
         const { message, imageBase64, history } = req.body;
         if (!message && !imageBase64) return res.status(400).json({ error: 'Mensagem ou imagem é obrigatória' });
 
-        const apiKey = process.env.GEMINI_API_KEY || '';
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            return res.status(401).json({
+                error: 'Configuração Incompleta',
+                details: 'A chave GEMINI_API_KEY não foi encontrada no servidor Vercel. Por favor, adicione-a nas variáveis de ambiente.'
+            });
+        }
+
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-        // Construct contents according to Google AI schema
+        // Construct contents
         let contents = [];
-
-        // Add Chat History
         if (history && Array.isArray(history)) {
             history.forEach(h => {
                 if (h.text) {
@@ -123,18 +139,13 @@ app.post('/api/chat', async (req, res) => {
             });
         }
 
-        // Add Current Message
         let currentParts = [];
-        if (message) {
-            currentParts.push({ text: message });
-        }
+        if (message) currentParts.push({ text: message });
 
         if (imageBase64) {
             const matches = imageBase64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
             if (matches && matches.length === 3) {
-                // Reinforce macro instructions if imaging
-                if (!message) currentParts.push({ text: "Analise esta refeição detalhadamente, dando gramas estimadas de cada item e o total de Macronutrientes (Proteína, Carboidrato, Gordura) e Calorias. Use <strong> para destacar valores numéricos." });
-
+                if (!message) currentParts.push({ text: "Analise esta imagem detalhadamente, dando gramas estimadas e o total de Macronutrientes (Proteína, Carboidrato, Gordura) e Calorias. Use <strong> para destacar números." });
                 currentParts.push({
                     inlineData: {
                         mimeType: matches[1],
@@ -151,13 +162,11 @@ app.post('/api/chat', async (req, res) => {
         const requestBody = {
             contents: contents,
             systemInstruction: {
-                parts: [{ text: "Você é o Nutrik.IA, um assistente nutricional amigável, ágil e técnico. Filtre alimentos em fotos, estime gramas e informe macronutrientes exatos usando <strong> para destacar números. Responda como uma conversa natural." }]
+                parts: [{ text: "Você é o Nutrik.IA, assistente nutricional parceiro. Analise fotos, estime gramas e informe macros exatos usando <strong> em números. Seja amigável e técnico." }]
             },
             generationConfig: {
-                temperature: 0.4,
-                topP: 0.8,
-                topK: 40,
-                maxOutputTokens: 1024,
+                temperature: 0.3,
+                maxOutputTokens: 1024
             }
         };
 
@@ -170,25 +179,25 @@ app.post('/api/chat', async (req, res) => {
         const data = await fetchResponse.json();
 
         if (!fetchResponse.ok) {
-            console.error('[API CHAT] Erro Google Direct:', JSON.stringify(data, null, 2));
-            if (fetchResponse.status === 429) {
-                return res.status(429).json({ error: 'Opa! O cérebro da IA atingiu o limite grátis do Google. Espere 60s e tente de novo! ⏳' });
-            }
-            throw new Error(data.error?.message || 'Erro na comunicação direta com Google');
+            console.error('[API CHAT] Google Error Response:', data);
+            return res.status(fetchResponse.status).json({
+                error: 'Erro na IA do Google',
+                details: data.error?.message || JSON.stringify(data)
+            });
         }
 
         if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-            const reply = data.candidates[0].content.parts[0].text;
-            res.json({ reply: reply });
+            res.json({ reply: data.candidates[0].content.parts[0].text });
+        } else if (data.promptFeedback) {
+            res.json({ reply: "Desculpe, a IA não pôde processar essa imagem por motivos de segurança do Google (Filtro de Conteúdo). Tente outra foto!" });
         } else {
-            console.error('[API CHAT] Estrutura de resposta inesperada:', data);
-            throw new Error('Google não retornou uma resposta válida.');
+            throw new Error('Resposta do Google sem conteúdo válido.');
         }
 
     } catch (error) {
-        console.error('Error in Direct Gemini Chat:', error);
+        console.error('Error in Gemini Chat:', error);
         res.status(500).json({
-            error: 'Erro técnico de conexão com a IA. Tente atualizar a página.',
+            error: 'Erro técnico interno no servidor.',
             details: error.message
         });
     }
