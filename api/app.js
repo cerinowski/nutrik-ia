@@ -78,9 +78,9 @@ app.post('/api/chat', async (req, res) => {
         const { message, imageBase64, history } = req.body;
         if (!message && !imageBase64) return res.status(400).json({ error: 'Mensagem ou imagem é obrigatória' });
 
-        // Get the model (using 1.5-flash as the stable standard for vision)
+        // Get the model (Confirmed version requested by user)
         const model = genAI.getGenerativeModel({
-            model: "gemini-1.5-flash",
+            model: "gemini-2.5-flash",
             systemInstruction: "Você é o Nutrik.IA, assistente nutricional parceiro. Analise fotos, estime gramas e informe macros exatos usando <strong> em números. Seja amigável e técnico."
         });
 
