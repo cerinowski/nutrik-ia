@@ -5,9 +5,6 @@ const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy_key');
 
-// Using OpenAI-compatible endpoint for Gemini (more stable for this environment)
-const geminiBaseUrl = 'https://generativelanguage.googleapis.com/v1beta/openai/';
-
 // Supabase Admin Client
 const supabaseUrl = process.env.SUPABASE_URL || 'https://dummy.supabase.co';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || 'dummy_key';
@@ -101,84 +98,97 @@ app.post('/api/checkout-session', async (req, res) => {
     }
 });
 
-// Nutrik.IA Chat Endpoint
+// Nutrik.IA Chat Endpoint (Direct Google API Fetch Version)
 app.post('/api/chat', async (req, res) => {
-    console.log('[API CHAT] Recebendo requisição (Fetch Mode)...');
+    console.log('[API CHAT] Recebendo requisição (Direct Google Fetch)...');
     try {
         const { message, imageBase64, history } = req.body;
         if (!message && !imageBase64) return res.status(400).json({ error: 'Mensagem ou imagem é obrigatória' });
 
-        const systemPrompt = `Você é o Nutrik.IA, um assistente nutricional amigável e técnico.
-        MUITO IMPORTANTE: Para fotos de comida, liste gramas estimadas e macronutrientes (Proteínas, Carboidratos, Gorduras e Calorias). 
-        Use <strong> para valores. Force uma estimativa técnica realista.`;
+        const apiKey = process.env.GEMINI_API_KEY || '';
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-        let messages = [{ role: 'system', content: systemPrompt }];
+        // Construct contents according to Google AI schema
+        let contents = [];
 
+        // Add Chat History
         if (history && Array.isArray(history)) {
             history.forEach(h => {
                 if (h.text) {
-                    messages.push({
-                        role: h.role === 'model' || h.role === 'assistant' ? 'assistant' : 'user',
-                        content: h.text
+                    contents.push({
+                        role: h.role === 'model' || h.role === 'assistant' ? 'model' : 'user',
+                        parts: [{ text: h.text }]
                     });
                 }
             });
         }
 
-        let userContent = [];
-        if (message) userContent.push({ type: 'text', text: message });
+        // Add Current Message
+        let currentParts = [];
+        if (message) {
+            currentParts.push({ text: message });
+        }
 
         if (imageBase64) {
             const matches = imageBase64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
             if (matches && matches.length === 3) {
-                userContent.push({ type: 'text', text: "Analise esta imagem detalhadamente, dando pesos e macros." });
-                userContent.push({ type: 'image_url', image_url: { url: imageBase64 } });
+                // Reinforce macro instructions if imaging
+                if (!message) currentParts.push({ text: "Analise esta refeição detalhadamente, dando gramas estimadas de cada item e o total de Macronutrientes (Proteína, Carboidrato, Gordura) e Calorias. Use <strong> para destacar valores numéricos." });
+
+                currentParts.push({
+                    inlineData: {
+                        mimeType: matches[1],
+                        data: matches[2]
+                    }
+                });
             }
         } else if (!message) {
-            userContent.push({ type: 'text', text: "Analise esta imagem detalhadamente, dando pesos e macros." });
+            currentParts.push({ text: "Olá!" });
         }
 
-        messages.push({ role: 'user', content: userContent });
+        contents.push({ role: 'user', parts: currentParts });
 
-        const apiKey = process.env.GEMINI_API_KEY || '';
-        const fetchResponse = await fetch(`${geminiBaseUrl}chat/completions`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
+        const requestBody = {
+            contents: contents,
+            systemInstruction: {
+                parts: [{ text: "Você é o Nutrik.IA, um assistente nutricional amigável, ágil e técnico. Filtre alimentos em fotos, estime gramas e informe macronutrientes exatos usando <strong> para destacar números. Responda como uma conversa natural." }]
             },
-            body: JSON.stringify({
-                model: 'gemini-1.5-flash',
-                messages: messages,
-                temperature: 0.3,
-                max_tokens: 1000
-            })
+            generationConfig: {
+                temperature: 0.4,
+                topP: 0.8,
+                topK: 40,
+                maxOutputTokens: 1024,
+            }
+        };
+
+        const fetchResponse = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
         });
 
         const data = await fetchResponse.json();
 
         if (!fetchResponse.ok) {
-            console.error('[API CHAT] Erro Gemini:', data);
-
-            // Handle Rate Limit specifically
+            console.error('[API CHAT] Erro Google Direct:', JSON.stringify(data, null, 2));
             if (fetchResponse.status === 429) {
-                return res.status(429).json({
-                    error: 'Opa! O cérebro da IA está respirando no momento (limite de uso grátis atingido). Espere 60s e tente novamente! ⏳'
-                });
+                return res.status(429).json({ error: 'Opa! O cérebro da IA atingiu o limite grátis do Google. Espere 60s e tente de novo! ⏳' });
             }
-
-            return res.status(fetchResponse.status).json({
-                error: 'Erro técnico na IA',
-                details: data.error?.message || 'Erro desconhecido'
-            });
+            throw new Error(data.error?.message || 'Erro na comunicação direta com Google');
         }
 
-        res.json({ reply: data.choices[0].message.content });
+        if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+            const reply = data.candidates[0].content.parts[0].text;
+            res.json({ reply: reply });
+        } else {
+            console.error('[API CHAT] Estrutura de resposta inesperada:', data);
+            throw new Error('Google não retornou uma resposta válida.');
+        }
 
     } catch (error) {
-        console.error('Error in Chat:', error);
+        console.error('Error in Direct Gemini Chat:', error);
         res.status(500).json({
-            error: 'Erro de conexão interna. Tente atualizar a página.',
+            error: 'Erro técnico de conexão com a IA. Tente atualizar a página.',
             details: error.message
         });
     }
