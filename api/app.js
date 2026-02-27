@@ -187,6 +187,11 @@ app.post('/api/chat', async (req, res) => {
                 const matches = imageBase64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
 
                 if (matches && matches.length === 3) {
+                    // Reinforce the technical requirement inside the same message as the image
+                    userContent.push({
+                        type: 'text',
+                        text: "Analise esta imagem detalhadamente. Liste os alimentos, suas gramas estimadas e o total de Carboidratos, Proteínas e Gorduras em gramas. É OBRIGATÓRIO dar números estimados."
+                    });
                     userContent.push({
                         type: 'image_url',
                         image_url: { url: imageBase64 }
@@ -211,10 +216,10 @@ app.post('/api/chat', async (req, res) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'gemini-2.5-flash',
+                model: 'gemini-1.5-flash',
                 messages: messages,
-                temperature: 0.7,
-                max_tokens: 800
+                temperature: 0.3, // Lower temperature for more consistent technical estimates
+                max_tokens: 1000
             })
         });
 
