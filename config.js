@@ -1,5 +1,6 @@
-const SUPABASE_URL = 'https://aoejmzgcgvvtyokfvubn.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_fa21s24ZyIlO73XxvT_BqA_FVVO0VdM';
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-// The Supabase script is loaded via CDN in the HTML files before this module
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+export const SUPABASE_URL = 'https://aoejmzgcgvvtyokfvubn.supabase.co';
+export const SUPABASE_ANON_KEY = 'sb_publishable_fa21s24ZyIlO73XxvT_BqA_FVVO0VdM';
+
+export const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);

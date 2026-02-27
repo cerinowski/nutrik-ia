@@ -311,13 +311,9 @@
         chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') handleSend();
         });
-
     </script>
-    <script src="config.js"></script>
     <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-        // Re-initialize client explicitly to avoid window scope bugs
-        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        import { supabaseClient as supabase } from './config.js';
         // Use user's session
         let currentUser = null;
 
