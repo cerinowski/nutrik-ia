@@ -123,7 +123,7 @@
                 // Update Supabase DB
                 // WE ONLY UPDATE HERE DURING ACTIVE TYPING, NOT ON INITIAL LOAD
                 if (typeof currentUser !== 'undefined' && currentUser) {
-                    supabaseClient.from('profiles').update({ chat_history: chatHistory }).eq('id', currentUser.id)
+                    window.supabaseClient.from('profiles').update({ chat_history: chatHistory }).eq('id', currentUser.id)
                         .then(({ error }) => { if (error) console.error("History sync err:", error) });
                 }
             }
@@ -137,7 +137,7 @@
 
                 // Update Supabase Database
                 if (currentUser) {
-                    supabaseClient
+                    window.supabaseClient
                         .from('profiles')
                         .update({ credits: credits })
                         .eq('id', currentUser.id)
@@ -313,13 +313,15 @@
         });
 
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
-    <script>
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+        // Re-initialize client explicitly to avoid window scope bugs
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         // Use user's session
         let currentUser = null;
 
-        supabaseClient.auth.onAuthStateChange(async (event, session) => {
+        supabase.auth.onAuthStateChange(async (event, session) => {
             if (!session) {
                 document.body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#000;color:#fff;font-family:sans-serif;text-align:center;"><h2>Sessão Expirada ou Inválida</h2><p>Houve um erro de comunicação ou o seu login expirou.</p><a href="index.html" style="padding:10px 20px;background:#C1FC23;color:#000;border-radius:8px;text-decoration:none;margin-top:20px;font-weight:bold;">Voltar e Fazer Login</a></div>';
                 return;
@@ -328,6 +330,8 @@
             if (!currentUser) { // Initialize profile only once
                 try {
                     currentUser = session.user;
+                    // Provide global access for the appended messages function
+                    window.supabaseClient = supabase;
 
                     // set avatar initials safely
                     const email = currentUser.email || 'User';
@@ -335,7 +339,7 @@
                     if (avatarEl) avatarEl.textContent = email.substring(0, 2).toUpperCase();
 
                     // Load real credits and chat_history from database
-                    const { data, error } = await supabaseClient
+                    const { data, error } = await supabase
                         .from('profiles')
                         .select('credits, chat_history')
                         .eq('id', currentUser.id)
@@ -357,7 +361,7 @@
                         console.log("No profile found or RLS blocked read. Creating/falling back (45 credits)...");
                         credits = 45;
                         // Attempt insert, but don't crash if RLS blocks insert
-                        await supabaseClient.from('profiles').insert([{ id: currentUser.id, credits: 45, chat_history: [] }]).catch(e => console.warn(e));
+                        await supabase.from('profiles').insert([{ id: currentUser.id, credits: 45, chat_history: [] }]).catch(e => console.warn(e));
                     }
 
                     const creditCountEl = document.getElementById('credit-count');
@@ -383,7 +387,7 @@
         const logoutBtn = document.getElementById('logout-btn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', async () => {
-                await supabaseClient.auth.signOut();
+                await supabase.auth.signOut();
                 window.location.href = 'index.html'; // Redirect to login
             });
         }

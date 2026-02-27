@@ -50,9 +50,11 @@
 
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script>
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
     let isLoginMode = true;
     const formTitle = document.querySelector('h1');
     const formDesc = document.getElementById('form-desc');
@@ -63,7 +65,7 @@
     const authSuccess = document.getElementById('auth-success');
 
     // Listen for auth changes to handle redirects more reliably across devices
-    supabaseClient.auth.onAuthStateChange((event, session) => {
+    supabase.auth.onAuthStateChange((event, session) => {
       if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
         formTitle.textContent = 'Sessão Ativa';
         formDesc.textContent = 'Bem-vindo de volta! Clique abaixo para acessar a IA.';
@@ -120,11 +122,11 @@
 
       try {
         if (isLoginMode) {
-          const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+          const { data, error } = await supabase.auth.signInWithPassword({ email, password });
           if (error) throw error;
           window.location.href = 'chat.html';
         } else {
-          const { data, error } = await supabaseClient.auth.signUp({ email, password });
+          const { data, error } = await supabase.auth.signUp({ email, password });
           if (error) throw error;
 
           if (data.session) {
