@@ -326,48 +326,67 @@
             }
 
             if (!currentUser) { // Initialize profile only once
-                currentUser = session.user;
+                try {
+                    currentUser = session.user;
 
-                // set avatar initials
-                const email = currentUser.email;
-                document.querySelector('.avatar').textContent = email.substring(0, 2).toUpperCase();
+                    // set avatar initials safely
+                    const email = currentUser.email || 'User';
+                    const avatarEl = document.querySelector('.avatar');
+                    if (avatarEl) avatarEl.textContent = email.substring(0, 2).toUpperCase();
 
-                // Load real credits and chat_history from database
-                const { data, error } = await supabaseClient
-                    .from('profiles')
-                    .select('credits, chat_history')
-                    .eq('id', currentUser.id)
-                    .single();
+                    // Load real credits and chat_history from database
+                    const { data, error } = await supabaseClient
+                        .from('profiles')
+                        .select('credits, chat_history')
+                        .eq('id', currentUser.id)
+                        .single();
 
-                if (!error && data) {
-                    credits = data.credits !== null && data.credits !== undefined ? data.credits : 0;
-                    if (data.chat_history && Array.isArray(data.chat_history)) {
-                        chatHistory = data.chat_history;
+                    if (!error && data) {
+                        credits = data.credits !== null && data.credits !== undefined ? data.credits : 0;
+
+                        // Parse if it came as string because of manual DB edit
+                        let parseHistory = data.chat_history;
+                        if (typeof parseHistory === 'string') {
+                            try { parseHistory = JSON.parse(parseHistory); } catch (e) { parseHistory = []; }
+                        }
+
+                        if (parseHistory && Array.isArray(parseHistory)) {
+                            chatHistory = parseHistory;
+                        }
+                    } else {
+                        console.log("No profile found or RLS blocked read. Creating/falling back (45 credits)...");
+                        credits = 45;
+                        // Attempt insert, but don't crash if RLS blocks insert
+                        await supabaseClient.from('profiles').insert([{ id: currentUser.id, credits: 45, chat_history: [] }]).catch(e => console.warn(e));
                     }
-                } else {
-                    console.log("No profile found. Creating a new one (45 credits)...");
-                    credits = 45;
-                    await supabaseClient.from('profiles').insert([{ id: currentUser.id, credits: 45, chat_history: [] }]);
-                }
 
-                document.getElementById('credit-count').textContent = credits;
+                    const creditCountEl = document.getElementById('credit-count');
+                    if (creditCountEl) creditCountEl.textContent = credits;
 
-                // Restore history on page load after auth
-                if (chatHistory.length > 0) {
-                    messagesContainer.innerHTML = ''; // Remove default welcome message
-                    chatHistory.forEach(msg => {
-                        // Pass saveToHistory = false to prevent re-uploading the loaded history
-                        appendMessage(msg.text, msg.role === 'user', false, false);
-                    });
+                    // Restore history on page load after auth
+                    if (chatHistory.length > 0) {
+                        const messagesContainer = document.getElementById('chat-messages');
+                        if (messagesContainer) messagesContainer.innerHTML = ''; // Remove default welcome message
+                        chatHistory.forEach(msg => {
+                            // Pass saveToHistory = false to prevent re-uploading the loaded history
+                            appendMessage(msg.text, msg.role === 'user', false, false);
+                        });
+                    }
+                } catch (err) {
+                    console.error("Critical Auth Init Error:", err);
+                    alert("Erro ao carregar seu perfil: " + err.message);
                 }
             }
         });
 
         // Logout
-        document.getElementById('logout-btn').addEventListener('click', async () => {
-            await supabaseClient.auth.signOut();
-            window.location.href = 'index.html'; // Redirect to login
-        });
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', async () => {
+                await supabaseClient.auth.signOut();
+                window.location.href = 'index.html'; // Redirect to login
+            });
+        }
     </script>
 </body>
 
