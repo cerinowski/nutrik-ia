@@ -7,7 +7,15 @@
       "use": "@vercel/node"
     },
     {
-      "src": "public/**",
+      "src": "*.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "styles.css",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "config.js",
       "use": "@vercel/static"
     }
   ],
@@ -19,22 +27,6 @@
     {
       "source": "/webhook/stripe",
       "destination": "/api/index.js"
-    },
-    {
-      "source": "/",
-      "destination": "/public/index.html"
-    },
-    {
-      "source": "/chat",
-      "destination": "/public/chat.html"
-    },
-    {
-      "source": "/plans",
-      "destination": "/public/plans.html"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/public/$1"
     }
   ]
 }
