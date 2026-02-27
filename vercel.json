@@ -1,6 +1,16 @@
 {
   "version": 2,
   "cleanUrls": true,
+  "builds": [
+    {
+      "src": "api/index.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
@@ -11,8 +21,20 @@
       "destination": "/api/index.js"
     },
     {
-      "source": "/create-checkout-session",
-      "destination": "/api/index.js"
+      "source": "/",
+      "destination": "/public/index.html"
+    },
+    {
+      "source": "/chat",
+      "destination": "/public/chat.html"
+    },
+    {
+      "source": "/plans",
+      "destination": "/public/plans.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/public/$1"
     }
   ]
 }

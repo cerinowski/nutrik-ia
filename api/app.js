@@ -6,8 +6,8 @@ const { createClient } = require('@supabase/supabase-js');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy_key');
 const OpenAI = require('openai');
 
-// Initialize OpenAI Client
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'dummy_openai_key' });
+// Using native fetch for Gemini instead of OpenAI SDK module
+const geminiBaseUrl = 'https://generativelanguage.googleapis.com/v1beta/openai/';
 
 // Supabase Admin Client (to bypass RLS for webhook updates)
 // We will use the service_role key for this.
@@ -148,51 +148,7 @@ app.post('/api/chat', async (req, res) => {
         }
 
         // Initialize multi-turn chat format
-        let contentsArray = [];
-
-        if (history && Array.isArray(history)) {
-            history.forEach(h => {
-                if (h.text) {
-                    contentsArray.push({
-                        role: h.role === 'model' ? 'model' : 'user',
-                        parts: [{ text: h.text }]
-                    });
-                }
-            });
-        }
-
-        let currentParts = [];
-
-        // If there is an image, attach it to the prompt
-        if (imageBase64) {
-            try {
-                const matches = imageBase64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
-
-                if (matches && matches.length === 3) {
-                    const mimeType = matches[1];
-                    let rawBase64 = matches[2];
-                    const cleanBase64 = Buffer.from(rawBase64, 'base64').toString('base64');
-
-                    currentParts.push({
-                        inlineData: {
-                            data: cleanBase64,
-                            mimeType: mimeType
-                        }
-                    });
-                } else {
-                    return res.status(400).json({ error: 'Formato de imagem inválido' });
-                }
-            } catch (e) {
-                return res.status(400).json({ error: 'Falha ao decodificar a imagem' });
-            }
-        }
-
-        // Add user message
-        currentParts.push({ text: message || "Analise a imagem desta refeição e me dê uma estimativa dos macronutrientes." });
-
-        contentsArray.push({ role: 'user', parts: currentParts });
-
-        console.log("[GEMINI SDK PAYLOAD]:", JSON.stringify(contentsArray, null, 2));
+        let messages = [];
 
         // System prompt context for the AI persona
         const systemPrompt = `Você é o Nutrik.IA, um assistente nutricional parceiro de saúde parceiro do usuário.
@@ -202,16 +158,73 @@ app.post('/api/chat', async (req, res) => {
         Formate a resposta usando HTML básico se quiser destacar macros (ex: <strong>30g Proteína</strong>), mas mantenha o fluxo do texto limpo.
         Não use markdown markdown complexo no meio do texto, prefira responder imitando uma conversa de WhatsApp humanizada.`;
 
-        const response = await ai.models.generateContent({
-            model: 'gemini-1.5-flash-latest',
-            contents: contentsArray,
-            config: {
-                systemInstruction: systemPrompt,
-                temperature: 0.7
+        messages.push({ role: 'system', content: systemPrompt });
+
+        if (history && Array.isArray(history)) {
+            history.forEach(h => {
+                if (h.text) {
+                    messages.push({
+                        role: h.role === 'model' || h.role === 'assistant' ? 'assistant' : 'user',
+                        content: h.text
+                    });
+                }
+            });
+        }
+
+        let userContent = [];
+
+        // Add user message
+        if (message) {
+            userContent.push({ type: 'text', text: message });
+        } else {
+            userContent.push({ type: 'text', text: "Analise a imagem desta refeição e me dê uma estimativa dos macronutrientes." });
+        }
+
+        // If there is an image, attach it to the prompt
+        if (imageBase64) {
+            try {
+                const matches = imageBase64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+
+                if (matches && matches.length === 3) {
+                    userContent.push({
+                        type: 'image_url',
+                        image_url: { url: imageBase64 }
+                    });
+                } else {
+                    return res.status(400).json({ error: 'Formato de imagem inválido' });
+                }
+            } catch (e) {
+                return res.status(400).json({ error: 'Falha ao decodificar a imagem' });
             }
+        }
+
+        messages.push({ role: 'user', content: userContent });
+
+        console.log("[OPENAI SDK PAYLOAD]:", JSON.stringify(messages, null, 2));
+
+        const apiKey = process.env.GEMINI_API_KEY || 'dummy_gemini_key';
+        const fetchResponse = await fetch(`${geminiBaseUrl}chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'gemini-2.5-flash',
+                messages: messages,
+                temperature: 0.7,
+                max_tokens: 800
+            })
         });
 
-        res.json({ reply: response.text });
+        const data = await fetchResponse.json();
+
+        if (!fetchResponse.ok) {
+            console.error('[API CHAT] Erro do Gemini:', data);
+            throw new Error(`Gemini Error: ${data.error?.message || JSON.stringify(data)}`);
+        }
+
+        res.json({ reply: data.choices[0].message.content });
 
     } catch (error) {
         console.error('Error in Gemini Chat:', error);
