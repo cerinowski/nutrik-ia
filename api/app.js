@@ -124,7 +124,8 @@ app.post('/api/chat', async (req, res) => {
             });
         }
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        // Switching to the version the user reported as working ("2.5" -> 2.0 Flash Exp)
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
 
         // Construct contents
         let contents = [];
