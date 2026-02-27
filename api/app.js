@@ -156,8 +156,8 @@ app.post('/api/chat', async (req, res) => {
         Responda de forma amigável, ágil, assertiva e motivadora.
         MUITO IMPORTANTE: Se o usuário calcular Taxa Metabólica Basal fornecendo peso/altura/idade, calcule usando Harris-Benedict e dê a faixa de calorias ideal.
         MUITO IMPORTANTE: Se o usuário enviar uma foto de comida, VOCÊ DEVE OBRIGATORIAMENTE listar as estimativas visuais de quantidade (em gramas) para CADA alimento identificado no prato. Em seguida, resuma EXATAMENTE os macronutrientes do prato inteiro (Proteínas, Carboidratos e Gorduras em gramas), além do Total de Calorias da refeição. 
-        Sem esses dados exatos (gramas, calorias e macros), a sua resposta é inválida. Force uma estimativa técnica e realista baseada no tamanho da porção visualizada.
-        Formate a resposta destacando os números e nomes (ex: <strong>150g de Frango</strong>, <strong>30g Proteína</strong>, <strong>450 kcal</strong>). Mantenha o texto limpo, sem markdown excessivo, como uma conversa realista.`;
+        Force uma estimativa técnica e realista baseada no tamanho da porção visualizada.
+        Formate a resposta destacando os números e nomes (ex: <strong>150g de Frango</strong>, <strong>30g Proteína</strong>, <strong>450 kcal</strong>). Mantenha o texto limpo, sem markdown excessivo.`;
 
         messages.push({ role: 'system', content: systemPrompt });
 
@@ -173,18 +173,20 @@ app.post('/api/chat', async (req, res) => {
         }
 
         let userContent = [];
-        let combinedText = message || "Analise a imagem desta refeição e me dê uma estimativa dos macronutrientes.";
 
-        // If there is an image, attach it and strengthen the request
+        // Add user message
+        if (message) {
+            userContent.push({ type: 'text', text: message });
+        } else {
+            userContent.push({ type: 'text', text: "Analise a imagem desta refeição e me dê uma estimativa dos macronutrientes." });
+        }
+
+        // If there is an image, attach it to the prompt
         if (imageBase64) {
             try {
                 const matches = imageBase64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
 
                 if (matches && matches.length === 3) {
-                    // Combine previous text with the strict vision instruction
-                    combinedText += "\n\nAnalise esta imagem detalhadamente. Liste os alimentos, suas gramas estimadas e o total de Carboidratos, Proteínas e Gorduras em gramas. É OBRIGATÓRIO dar números estimados. Formate os macros com <strong>.";
-
-                    userContent.push({ type: 'text', text: combinedText });
                     userContent.push({
                         type: 'image_url',
                         image_url: { url: imageBase64 }
@@ -195,13 +197,11 @@ app.post('/api/chat', async (req, res) => {
             } catch (e) {
                 return res.status(400).json({ error: 'Falha ao decodificar a imagem' });
             }
-        } else {
-            userContent.push({ type: 'text', text: combinedText });
         }
 
         messages.push({ role: 'user', content: userContent });
 
-        const apiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_KEY || process.env.OPENAI_API_KEY;
+        const apiKey = process.env.GEMINI_API_KEY || 'dummy_gemini_key';
         console.log(`[API CHAT] Usando API Key iniciada com: ${apiKey ? apiKey.substring(0, 5) : 'MISSING'}`);
 
         const fetchResponse = await fetch(`${geminiBaseUrl}chat/completions`, {
@@ -211,9 +211,9 @@ app.post('/api/chat', async (req, res) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'gemini-1.5-flash',
+                model: 'gemini-2.5-flash',
                 messages: messages,
-                temperature: 0.3,
+                temperature: 0.5,
                 max_tokens: 1000
             })
         });
@@ -221,9 +221,9 @@ app.post('/api/chat', async (req, res) => {
         const data = await fetchResponse.json();
 
         if (!fetchResponse.ok) {
-            console.error('[API CHAT] Erro Crítico do Gemini:', JSON.stringify(data, null, 2));
+            console.error('[API CHAT] Erro Gemini:', data);
             return res.status(fetchResponse.status).json({
-                error: 'Erro na API da Gemini',
+                error: 'Erro na API da IA',
                 details: data.error?.message || JSON.stringify(data)
             });
         }
