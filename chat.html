@@ -122,8 +122,8 @@
 
                 // Update Supabase DB
                 // WE ONLY UPDATE HERE DURING ACTIVE TYPING, NOT ON INITIAL LOAD
-                if (typeof currentUser !== 'undefined' && currentUser) {
-                    window.supabaseClient.from('profiles').update({ chat_history: chatHistory }).eq('id', currentUser.id)
+                if (typeof window.currentUser !== 'undefined' && window.currentUser) {
+                    window.supabaseClient.from('profiles').update({ chat_history: chatHistory }).eq('id', window.currentUser.id)
                         .then(({ error }) => { if (error) console.error("History sync err:", error) });
                 }
             }
@@ -136,11 +136,11 @@
                 document.getElementById('credit-count').textContent = credits;
 
                 // Update Supabase Database
-                if (currentUser) {
+                if (typeof window.currentUser !== 'undefined' && window.currentUser) {
                     window.supabaseClient
                         .from('profiles')
                         .update({ credits: credits })
-                        .eq('id', currentUser.id)
+                        .eq('id', window.currentUser.id)
                         .then(({ error }) => {
                             if (error) console.error("Erro ao atualizar os créditos no banco:", error);
                         });
@@ -312,81 +312,94 @@
             if (e.key === 'Enter') handleSend();
         });
     </script>
-    <script type="module">
-        import { supabaseClient as supabase } from './config.js';
-        // Use user's session
-        let currentUser = null;
-
-        supabase.auth.onAuthStateChange(async (event, session) => {
-            if (!session) {
-                document.body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#000;color:#fff;font-family:sans-serif;text-align:center;"><h2>Sessão Expirada ou Inválida</h2><p>Houve um erro de comunicação ou o seu login expirou.</p><a href="index.html" style="padding:10px 20px;background:#C1FC23;color:#000;border-radius:8px;text-decoration:none;margin-top:20px;font-weight:bold;">Voltar e Fazer Login</a></div>';
+    <script type="module" src="config.js"></script>
+    <script>
+        // Wait for the ES Module to expose supabaseClient to the window
+        function initAuth() {
+            if (!window.supabaseClient) {
+                setTimeout(initAuth, 50);
                 return;
             }
 
-            if (!currentUser) { // Initialize profile only once
-                try {
-                    currentUser = session.user;
-                    // Provide global access for the appended messages function
-                    window.supabaseClient = supabase;
+            const supabase = window.supabaseClient;
 
-                    // set avatar initials safely
-                    const email = currentUser.email || 'User';
-                    const avatarEl = document.querySelector('.avatar');
-                    if (avatarEl) avatarEl.textContent = email.substring(0, 2).toUpperCase();
+            // Use user's session
+            let currentUser = null;
 
-                    // Load real credits and chat_history from database
-                    const { data, error } = await supabase
-                        .from('profiles')
-                        .select('credits, chat_history')
-                        .eq('id', currentUser.id)
-                        .single();
-
-                    if (!error && data) {
-                        credits = data.credits !== null && data.credits !== undefined ? data.credits : 0;
-
-                        // Parse if it came as string because of manual DB edit
-                        let parseHistory = data.chat_history;
-                        if (typeof parseHistory === 'string') {
-                            try { parseHistory = JSON.parse(parseHistory); } catch (e) { parseHistory = []; }
-                        }
-
-                        if (parseHistory && Array.isArray(parseHistory)) {
-                            chatHistory = parseHistory;
-                        }
-                    } else {
-                        console.log("No profile found or RLS blocked read. Creating/falling back (45 credits)...");
-                        credits = 45;
-                        // Attempt insert, but don't crash if RLS blocks insert
-                        await supabase.from('profiles').insert([{ id: currentUser.id, credits: 45, chat_history: [] }]).catch(e => console.warn(e));
-                    }
-
-                    const creditCountEl = document.getElementById('credit-count');
-                    if (creditCountEl) creditCountEl.textContent = credits;
-
-                    // Restore history on page load after auth
-                    if (chatHistory.length > 0) {
-                        const messagesContainer = document.getElementById('chat-messages');
-                        if (messagesContainer) messagesContainer.innerHTML = ''; // Remove default welcome message
-                        chatHistory.forEach(msg => {
-                            // Pass saveToHistory = false to prevent re-uploading the loaded history
-                            appendMessage(msg.text, msg.role === 'user', false, false);
-                        });
-                    }
-                } catch (err) {
-                    console.error("Critical Auth Init Error:", err);
-                    alert("Erro ao carregar seu perfil: " + err.message);
+            supabase.auth.onAuthStateChange(async (event, session) => {
+                if (!session) {
+                    document.body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#000;color:#fff;font-family:sans-serif;text-align:center;"><h2>Sessão Expirada ou Inválida</h2><p>Houve um erro de comunicação ou o seu login expirou.</p><a href="index.html" style="padding:10px 20px;background:#C1FC23;color:#000;border-radius:8px;text-decoration:none;margin-top:20px;font-weight:bold;">Voltar e Fazer Login</a></div>';
+                    return;
                 }
-            }
-        });
 
-        // Logout
-        const logoutBtn = document.getElementById('logout-btn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', async () => {
-                await supabase.auth.signOut();
-                window.location.href = 'index.html'; // Redirect to login
+                if (!currentUser) { // Initialize profile only once
+                    try {
+                        currentUser = session.user;
+                        // Provide global access for the appended messages function
+                        window.currentUser = currentUser;
+
+                        // set avatar initials safely
+                        const email = currentUser.email || 'User';
+                        const avatarEl = document.querySelector('.avatar');
+                        if (avatarEl) avatarEl.textContent = email.substring(0, 2).toUpperCase();
+
+                        // Load real credits and chat_history from database
+                        const { data, error } = await supabase
+                            .from('profiles')
+                            .select('credits, chat_history')
+                            .eq('id', currentUser.id)
+                            .single();
+
+                        if (!error && data) {
+                            credits = data.credits !== null && data.credits !== undefined ? data.credits : 0;
+
+                            // Parse if it came as string because of manual DB edit
+                            let parseHistory = data.chat_history;
+                            if (typeof parseHistory === 'string') {
+                                try { parseHistory = JSON.parse(parseHistory); } catch (e) { parseHistory = []; }
+                            }
+
+                            if (parseHistory && Array.isArray(parseHistory)) {
+                                chatHistory = parseHistory;
+                            }
+                        } else {
+                            console.log("No profile found or RLS blocked read. Creating/falling back (45 credits)...");
+                            credits = 45;
+                            // Attempt insert, but don't crash if RLS blocks insert
+                            await supabase.from('profiles').insert([{ id: currentUser.id, credits: 45, chat_history: [] }]).catch(e => console.warn(e));
+                        }
+
+                        const creditCountEl = document.getElementById('credit-count');
+                        if (creditCountEl) creditCountEl.textContent = credits;
+
+                        // Restore history on page load after auth
+                        if (chatHistory.length > 0) {
+                            const messagesContainer = document.getElementById('chat-messages');
+                            if (messagesContainer) messagesContainer.innerHTML = ''; // Remove default welcome message
+                            chatHistory.forEach(msg => {
+                                // Pass saveToHistory = false to prevent re-uploading the loaded history
+                                appendMessage(msg.text, msg.role === 'user', false, false);
+                            });
+                        }
+                    } catch (err) {
+                        console.error("Critical Auth Init Error:", err);
+                        alert("Erro ao carregar seu perfil: " + err.message);
+                    }
+                }
             });
+
+            // Logout
+            const logoutBtn = document.getElementById('logout-btn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', async () => {
+                    await supabase.auth.signOut();
+                    window.location.href = 'index.html'; // Redirect to login
+                });
+            }
         }
+
+        // Start initialization loop
+        initAuth();
     </script>
 </body>
 

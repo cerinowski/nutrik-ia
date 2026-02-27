@@ -94,76 +94,85 @@
     <script>
         lucide.createIcons();
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="config.js"></script>
+    <script type="module" src="config.js"></script>
     <script>
-        let currentUser = null;
-
-        async function checkSession() {
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (!session) {
-                window.location.href = 'index.html';
+        // Wait for the ES Module to expose supabaseClient to the window
+        function initAuth() {
+            if (!window.supabaseClient) {
+                setTimeout(initAuth, 50);
                 return;
             }
-            currentUser = session.user;
-        }
-        checkSession();
 
-        supabaseClient.auth.onAuthStateChange((event, session) => {
-            if (event === 'SIGNED_OUT' || !session) {
-                window.location.href = 'index.html';
-            }
-        });
+            const supabase = window.supabaseClient;
+            let currentUser = null;
 
-        // Handle Stripe Checkout
-        const btnPremium = document.getElementById('btn-premium');
-        if (btnPremium) {
-            btnPremium.addEventListener('click', async (e) => {
-                e.preventDefault();
-                if (!currentUser) {
-                    alert('Por favor, faça login primeiro!');
+            async function checkSession() {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) {
+                    window.location.href = 'index.html';
                     return;
                 }
+                currentUser = session.user;
+            }
+            checkSession();
 
-                btnPremium.textContent = 'Aguarde...';
-                btnPremium.style.pointerEvents = 'none';
-                btnPremium.style.opacity = '0.7';
-
-                try {
-                    const response = await fetch('/api/checkout-session', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            email: currentUser.email,
-                            userId: currentUser.id
-                        })
-                    });
-
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.error || 'Erro ao gerar pagamento');
-                    }
-
-                    const { url } = await response.json();
-
-                    // Redirect to Stripe Checkout
-                    if (url) {
-                        window.location.href = url;
-                    } else {
-                        throw new Error('URL de checkout não retornada.');
-                    }
-                } catch (error) {
-                    console.error('Erro de Checkout:', error);
-                    alert('Erro ao carregar o pagamento. Tente novamente mais tarde.');
-                    btnPremium.textContent = 'Assinar Premium';
-                    btnPremium.style.pointerEvents = 'auto';
-                    btnPremium.style.opacity = '1';
+            supabase.auth.onAuthStateChange((event, session) => {
+                if (event === 'SIGNED_OUT' || !session) {
+                    window.location.href = 'index.html';
                 }
             });
+
+            // Handle Stripe Checkout
+            const btnPremium = document.getElementById('btn-premium');
+            if (btnPremium) {
+                btnPremium.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    if (!currentUser) {
+                        alert('Por favor, faça login primeiro!');
+                        return;
+                    }
+
+                    btnPremium.textContent = 'Aguarde...';
+                    btnPremium.style.pointerEvents = 'none';
+                    btnPremium.style.opacity = '0.7';
+
+                    try {
+                        const response = await fetch('/api/checkout-session', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                email: currentUser.email,
+                                userId: currentUser.id
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.error || 'Erro ao gerar pagamento');
+                        }
+
+                        const { url } = await response.json();
+
+                        // Redirect to Stripe Checkout
+                        if (url) {
+                            window.location.href = url;
+                        } else {
+                            throw new Error('URL de checkout não retornada.');
+                        }
+                    } catch (error) {
+                        console.error('Erro de Checkout:', error);
+                        alert('Erro ao carregar o pagamento. Tente novamente mais tarde.');
+                        btnPremium.textContent = 'Assinar Premium';
+                        btnPremium.style.pointerEvents = 'auto';
+                        btnPremium.style.opacity = '1';
+                    }
+                });
+            }
         }
 
+        initAuth();
     </script>
 </body>
 

@@ -48,109 +48,119 @@
       </div>
     </div>
 
-  </div>
+    <script type="module" src="config.js"></script>
+    <script>
+      let isLoginMode = true;
+      const formTitle = document.querySelector('h1');
+      const formDesc = document.getElementById('form-desc');
+      const submitBtn = document.getElementById('submit-btn');
+      const toggleText = document.getElementById('toggle-text');
+      const toggleMode = document.getElementById('toggle-mode');
+      const authError = document.getElementById('auth-error');
+      const authSuccess = document.getElementById('auth-success');
 
-  <script type="module">
-    import { supabaseClient as supabase } from './config.js';
-
-    let isLoginMode = true;
-    const formTitle = document.querySelector('h1');
-    const formDesc = document.getElementById('form-desc');
-    const submitBtn = document.getElementById('submit-btn');
-    const toggleText = document.getElementById('toggle-text');
-    const toggleMode = document.getElementById('toggle-mode');
-    const authError = document.getElementById('auth-error');
-    const authSuccess = document.getElementById('auth-success');
-
-    // Listen for auth changes to handle redirects more reliably across devices
-    supabase.auth.onAuthStateChange((event, session) => {
-      if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
-        formTitle.textContent = 'Sessão Ativa';
-        formDesc.textContent = 'Bem-vindo de volta! Clique abaixo para acessar a IA.';
-        document.getElementById('email').parentElement.style.display = 'none';
-        document.getElementById('senha').parentElement.style.display = 'none';
-        submitBtn.style.display = 'none';
-
-        let existingBtn = document.getElementById('go-chat-btn');
-        if (!existingBtn) {
-          existingBtn = document.createElement('a');
-          existingBtn.id = 'go-chat-btn';
-          existingBtn.href = 'chat.html';
-          existingBtn.className = 'btn-primary';
-          existingBtn.style.display = 'block';
-          existingBtn.style.textAlign = 'center';
-          existingBtn.style.textDecoration = 'none';
-          existingBtn.textContent = 'Acessar o Chat ⚡';
-          submitBtn.parentElement.appendChild(existingBtn);
+      // Wait for the ES Module to expose supabaseClient to the window
+      function initAuth() {
+        if (!window.supabaseClient) {
+          setTimeout(initAuth, 50);
+          return;
         }
-        document.querySelector('.login-footer').style.display = 'none';
-      }
-    });
 
-    toggleMode.addEventListener('click', (e) => {
-      e.preventDefault();
-      isLoginMode = !isLoginMode;
-      authError.style.display = 'none';
-      authSuccess.style.display = 'none';
+        const supabase = window.supabaseClient;
 
-      if (isLoginMode) {
-        formTitle.textContent = 'Entrar';
-        formDesc.textContent = 'Entre com seu email e senha para acessar sua conta';
-        submitBtn.textContent = 'Entrar';
-        toggleText.textContent = 'Não tem uma conta?';
-        toggleMode.textContent = 'Cadastre-se';
-      } else {
-        formTitle.textContent = 'Criar Conta';
-        formDesc.textContent = 'Crie sua conta para começar a usar o Nutrik.IA';
-        submitBtn.textContent = 'Cadastrar';
-        toggleText.textContent = 'Já tem uma conta?';
-        toggleMode.textContent = 'Entrar';
-      }
-    });
+        // Listen for auth changes to handle redirects more reliably across devices
+        supabase.auth.onAuthStateChange((event, session) => {
+          if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+            formTitle.textContent = 'Sessão Ativa';
+            formDesc.textContent = 'Bem-vindo de volta! Clique abaixo para acessar a IA.';
+            document.getElementById('email').parentElement.style.display = 'none';
+            document.getElementById('senha').parentElement.style.display = 'none';
+            submitBtn.style.display = 'none';
 
-    document.getElementById('auth-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('senha').value;
-
-      submitBtn.textContent = 'Aguarde...';
-      submitBtn.disabled = true;
-      authError.style.display = 'none';
-      authSuccess.style.display = 'none';
-
-      try {
-        if (isLoginMode) {
-          const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-          if (error) throw error;
-          window.location.href = 'chat.html';
-        } else {
-          const { data, error } = await supabase.auth.signUp({ email, password });
-          if (error) throw error;
-
-          if (data.session) {
-            window.location.href = 'chat.html';
-          } else {
-            authSuccess.textContent = 'Conta criada! Confirme seu email ou faça login.';
-            authSuccess.style.display = 'block';
-            // switch back to login mode visually
-            setTimeout(() => toggleMode.click(), 3000);
+            let existingBtn = document.getElementById('go-chat-btn');
+            if (!existingBtn) {
+              existingBtn = document.createElement('a');
+              existingBtn.id = 'go-chat-btn';
+              existingBtn.href = 'chat.html';
+              existingBtn.className = 'btn-primary';
+              existingBtn.style.display = 'block';
+              existingBtn.style.textAlign = 'center';
+              existingBtn.style.textDecoration = 'none';
+              existingBtn.textContent = 'Acessar o Chat ⚡';
+              submitBtn.parentElement.appendChild(existingBtn);
+            }
+            document.querySelector('.login-footer').style.display = 'none';
           }
-        }
-      } catch (err) {
-        authError.textContent = err.message || 'Ocorreu um erro.';
-        if (err.message.includes('Invalid login credentials')) {
-          authError.textContent = 'Email ou senha inválidos.';
-        }
-        if (err.message.includes('Password should be')) {
-          authError.textContent = 'A senha deve ter pelo menos 6 caracteres.';
-        }
-        authError.style.display = 'block';
-      } finally {
-        submitBtn.textContent = isLoginMode ? 'Entrar' : 'Cadastrar';
-        submitBtn.disabled = false;
+        });
+
+        document.getElementById('auth-form').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const email = document.getElementById('email').value;
+          const password = document.getElementById('senha').value;
+
+          submitBtn.textContent = 'Aguarde...';
+          submitBtn.disabled = true;
+          authError.style.display = 'none';
+          authSuccess.style.display = 'none';
+
+          try {
+            if (isLoginMode) {
+              const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+              if (error) throw error;
+              window.location.href = 'chat.html';
+            } else {
+              const { data, error } = await supabase.auth.signUp({ email, password });
+              if (error) throw error;
+
+              if (data.session) {
+                window.location.href = 'chat.html';
+              } else {
+                authSuccess.textContent = 'Conta criada! Confirme seu email ou faça login.';
+                authSuccess.style.display = 'block';
+                // switch back to login mode visually
+                setTimeout(() => toggleMode.click(), 3000);
+              }
+            }
+          } catch (err) {
+            authError.textContent = err.message || 'Ocorreu um erro.';
+            if (err.message.includes('Invalid login credentials')) {
+              authError.textContent = 'Email ou senha inválidos.';
+            }
+            if (err.message.includes('Password should be')) {
+              authError.textContent = 'A senha deve ter pelo menos 6 caracteres.';
+            }
+            authError.style.display = 'block';
+          } finally {
+            submitBtn.textContent = isLoginMode ? 'Entrar' : 'Cadastrar';
+            submitBtn.disabled = false;
+          }
+        });
       }
-    });
-  </script>
+
+      toggleMode.addEventListener('click', (e) => {
+        e.preventDefault();
+        isLoginMode = !isLoginMode;
+        authError.style.display = 'none';
+        authSuccess.style.display = 'none';
+
+        if (isLoginMode) {
+          formTitle.textContent = 'Entrar';
+          formDesc.textContent = 'Entre com seu email e senha para acessar sua conta';
+          submitBtn.textContent = 'Entrar';
+          toggleText.textContent = 'Não tem uma conta?';
+          toggleMode.textContent = 'Cadastre-se';
+        } else {
+          formTitle.textContent = 'Criar Conta';
+          formDesc.textContent = 'Crie sua conta para começar a usar o Nutrik.IA';
+          submitBtn.textContent = 'Cadastrar';
+          toggleText.textContent = 'Já tem uma conta?';
+          toggleMode.textContent = 'Entrar';
+        }
+      });
+
+      // Start initialization loop
+      initAuth();
+    </script>
 </body>
 
 </html>
