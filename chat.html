@@ -94,16 +94,7 @@
         const sendBtn = document.getElementById('send-btn');
         let credits = 0; // Default until loaded from DB
 
-        // Load history from browser storage
-        let chatHistory = JSON.parse(localStorage.getItem('nutrik_chat_history')) || [];
-
-        // Restore history on page load
-        if (chatHistory.length > 0) {
-            messagesContainer.innerHTML = ''; // Remove default welcome message
-            chatHistory.forEach(msg => {
-                appendMessage(msg.text, msg.role === 'user', false, false);
-            });
-        }
+        let chatHistory = [];
 
         // Scroll to bottom automatically
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -128,7 +119,12 @@
             if (saveToHistory) {
                 const textToSave = rawTextForHistory !== null ? rawTextForHistory : text;
                 chatHistory.push({ role: isUser ? 'user' : 'model', text: textToSave });
-                localStorage.setItem('nutrik_chat_history', JSON.stringify(chatHistory));
+                
+                // Update Supabase DB
+                if (typeof currentUser !== 'undefined' && currentUser) {
+                    supabaseClient.from('profiles').update({ chat_history: chatHistory }).eq('id', currentUser.id)
+                        .then(({ error }) => { if (error) console.error("History sync err:", error) });
+                }
             }
 
             // Deduct credits for AI responses containing images ONLY
@@ -228,6 +224,11 @@
             const imageToSend = currentImageBase64;
 
             if (!text && !imageToSend) return;
+
+            if (imageToSend && credits < 5) {
+                alert("Você não tem créditos suficientes para enviar imagens (custa 5 créditos). Assine o Premium!");
+                return;
+            }
 
             // 1. Mostrar mensagem do usuário
             let userContent = text;
@@ -330,22 +331,33 @@
                 const email = currentUser.email;
                 document.querySelector('.avatar').textContent = email.substring(0, 2).toUpperCase();
 
-                // Load real credits from database
+                // Load real credits and chat_history from database
                 const { data, error } = await supabaseClient
                     .from('profiles')
-                    .select('credits')
+                    .select('credits, chat_history')
                     .eq('id', currentUser.id)
                     .single();
 
                 if (!error && data) {
-                    credits = data.credits;
+                    credits = data.credits !== null && data.credits !== undefined ? data.credits : 0;
+                    if (data.chat_history && Array.isArray(data.chat_history)) {
+                        chatHistory = data.chat_history;
+                    }
                 } else {
                     console.log("No profile found. Creating a new one (45 credits)...");
                     credits = 45;
-                    await supabaseClient.from('profiles').insert([{ id: currentUser.id, credits: 45 }]);
+                    await supabaseClient.from('profiles').insert([{ id: currentUser.id, credits: 45, chat_history: [] }]);
                 }
 
                 document.getElementById('credit-count').textContent = credits;
+
+                // Restore history on page load after auth
+                if (chatHistory.length > 0) {
+                    messagesContainer.innerHTML = ''; // Remove default welcome message
+                    chatHistory.forEach(msg => {
+                        appendMessage(msg.text, msg.role === 'user', false, false);
+                    });
+                }
             }
         });
 

@@ -117,11 +117,12 @@ app.post('/api/checkout-session', async (req, res) => {
                             description: 'Acesso total, passes livres e análise de humor.',
                         },
                         unit_amount: 5700, // R$ 57.00
+                        recurring: { interval: 'month' }
                     },
                     quantity: 1,
                 },
             ],
-            mode: 'payment', // Change to 'subscription' later if recurring is needed
+            mode: 'subscription',
             // Use the host header to determine the success/cancel URLs dynamically
             success_url: `${req.protocol}://${req.get('host')}/chat.html?success=true`,
             cancel_url: `${req.protocol}://${req.get('host')}/plans.html?canceled=true`,
