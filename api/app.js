@@ -4,16 +4,15 @@ const cors = require('cors');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy_key');
-const OpenAI = require('openai');
-
-// Using native fetch for Gemini instead of OpenAI SDK module
-const geminiBaseUrl = 'https://generativelanguage.googleapis.com/v1beta/openai/';
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // Supabase Admin Client (to bypass RLS for webhook updates)
-// We will use the service_role key for this.
 const supabaseUrl = process.env.SUPABASE_URL || 'https://dummy.supabase.co';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || 'dummy_key'; // Fallback to anon if service key not provided, though service key is needed for bypass
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || 'dummy_key';
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+// Initialize Google Generative AI
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 const app = express();
 const port = process.env.PORT || 3000;
