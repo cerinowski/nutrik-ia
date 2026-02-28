@@ -16,7 +16,7 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
-// Middleware para validar chave de API em endpoints críticos
+// Middleware para validar chave de API
 const validateApiKey = (req, res, next) => {
     if (!GEMINI_API_KEY) {
         return res.status(500).json({ error: "GEMINI_API_KEY não configurada no servidor." });
@@ -28,7 +28,7 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
-// NOVO: Endpoint para listar modelos disponíveis (Descoberta)
+// ✅ PASSO OBRIGATÓRIO: Discovery de Modelos (conforme sugerido)
 app.get('/api/gemini-models', validateApiKey, async (req, res) => {
     try {
         const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models`, {
@@ -41,19 +41,19 @@ app.get('/api/gemini-models', validateApiKey, async (req, res) => {
     }
 });
 
-// Route: Chat (PATCHED BY USER SUGGESTION)
+// ✅ PATCH DIRETO: Endpoint de Chat com v1beta e Headers Oficiais
 app.post('/api/chat', validateApiKey, async (req, res) => {
     try {
         const { message, imageBase64, history } = req.body;
         if (!message && !imageBase64) return res.status(400).json({ error: 'Mensagem ou imagem obrigatória' });
 
-        // CONFIGURAÇÃO MESTRA: use v1beta (é o endpoint do generateContent na doc)
+        // CONFIGURAÇÃO MESTRA: use v1beta (conforme referência oficial)
         const model = process.env.GEMINI_MODEL || "gemini-1.5-flash";
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
         let contents = [];
 
-        // Histórico limitado
+        // Histórico limitado (User <-> Model)
         if (history && Array.isArray(history)) {
             let lastRole = null;
             history.slice(-6).forEach(h => {
@@ -63,13 +63,14 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
                     lastRole = role;
                 }
             });
-            if (lastRole === 'user' && !message && !imageBase64) contents.pop();
+            // Garante que o último não seja User se já formos enviar um novo User
+            if (lastRole === 'user' && (message || imageBase64)) contents.pop();
         }
 
         let currentParts = [];
         if (message) currentParts.push({ text: message });
 
-        // Tratamento flexível de imagem (com ou sem prefixo)
+        // ✅ AJUSTE EXTRA: Tratamento resiliente de Base64 (URI vs Raw)
         if (imageBase64) {
             const hasDataUri = imageBase64.startsWith("data:");
             if (hasDataUri) {
@@ -78,12 +79,12 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
                     currentParts.push({ inline_data: { mime_type: matches[1], data: matches[2] } });
                 }
             } else {
-                // assume base64 seco (fallback jpeg)
+                // base64 cru (assumindo jpeg como fallback)
                 currentParts.push({ inline_data: { mime_type: "image/jpeg", data: imageBase64 } });
             }
 
-            // Se apenas imagem, garante um prompt
-            if (!message) {
+            // Se apenas imagem, injeta prompt guia
+            if (currentParts.length === 1 && !message) {
                 currentParts.unshift({ text: "Analise esta imagem nutricionalmente: alimentos, gramas estimadas e macronutrientes." });
             }
         }
@@ -92,8 +93,9 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
 
         const payload = {
             contents,
-            systemInstruction: {
-                parts: [{ text: "Você é o Nutrik.IA. Analise as refeições e informe sempre: ALIMENTOS, GRAMAS ESTIMADAS e MACRONUTRIENTES (P, C, G e Calorias). Use <strong> apenas em números. Responda direto, sem introduções." }]
+            // ✅ CORREÇÃO: system_instruction (snake_case para API REST)
+            system_instruction: {
+                parts: [{ text: "Você é o Nutrik.IA. Analise as refeições e informe: ALIMENTOS, GRAMAS ESTIMADAS e MACRONUTRIENTES (P, C, G e Calorias). Use <strong> em números. Responda direto, sem introduções." }]
             },
             generationConfig: { maxOutputTokens: 2048, temperature: 0.1 }
         };
@@ -102,27 +104,27 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-goog-api-key': GEMINI_API_KEY
+                'x-goog-api-key': GEMINI_API_KEY // Header oficial
             },
             body: JSON.stringify(payload)
         });
 
         const data = await response.json();
         if (!response.ok) {
-            console.error("Gemini Error Details:", data);
+            console.error("Gemini Critical Error:", data);
             throw new Error(data.error?.message || 'Erro Google API');
         }
 
-        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Desculpe, não consegui analisar agora.";
+        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Desculpe, não consegui processar sua solicitação.";
         res.json({ reply });
 
     } catch (error) {
-        console.error('Chat Error:', error);
-        res.status(500).json({ error: 'Erro na IA', details: error.message });
+        console.error('Core Chat Error:', error);
+        res.status(500).json({ error: 'Erro técnico de IA', details: error.message });
     }
 });
 
-// Route: Stripe Checkout
+// Stripe Checkout
 app.post('/api/checkout-session', async (req, res) => {
     try {
         const { email, userId } = req.body;
@@ -149,7 +151,7 @@ app.post('/api/checkout-session', async (req, res) => {
     }
 });
 
-// Route: Stripe Webhook
+// Stripe Webhook
 app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
     const sig = req.headers['stripe-signature'];
     let event;
@@ -173,7 +175,7 @@ app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (re
 });
 
 if (require.main === module) {
-    app.listen(port, () => console.log(`Server port ${port}`));
+    app.listen(port, () => console.log(`Backend server active on port ${port}`));
 }
 
 module.exports = app;
