@@ -125,12 +125,6 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
-    } catch (error) {
-    console.error('Chat Critical Error:', error);
-    res.status(500).json({ error: 'Erro técnico de IA.', details: error.message });
-}
-});
-
 app.post('/api/checkout-session', async (req, res) => {
     try {
         const { email, userId } = req.body;
