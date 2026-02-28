@@ -75,8 +75,8 @@ app.post('/api/chat', async (req, res) => {
         const { message, imageBase64, history } = req.body;
         if (!message && !imageBase64) return res.status(400).json({ error: 'Mensagem ou imagem obrigatória' });
 
-        const model = "gemini-1.5-flash";
-        const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+        const model = "gemini-1.5-flash-latest";
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
 
         let contents = [];
         if (history && Array.isArray(history)) {
