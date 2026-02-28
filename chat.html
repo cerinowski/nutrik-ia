@@ -213,21 +213,12 @@
                         const canvas = document.createElement('canvas');
                         let width = img.width;
                         let height = img.height;
-
-                        if (width > height && width > maxSize) {
-                            height *= maxSize / width;
-                            width = maxSize;
-                        } else if (height > maxSize) {
-                            width *= maxSize / height;
-                            height = maxSize;
-                        }
-
-                        canvas.width = width;
-                        canvas.height = height;
+                        if (width > height && width > maxSize) { height *= maxSize / width; width = maxSize; }
+                        else if (height > maxSize) { width *= maxSize / height; height = maxSize; }
+                        canvas.width = width; canvas.height = height;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
-                        // Save as compressed JPEG
-                        resolve(canvas.toDataURL('image/jpeg', 0.8));
+                        resolve(canvas.toDataURL('image/jpeg', 0.8)); // 80% quality
                     };
                     img.src = e.target.result;
                 };
@@ -313,24 +304,60 @@
                     body: JSON.stringify(payload)
                 });
 
-                const data = await response.json();
-
                 if (!response.ok) {
+                    const data = await response.json().catch(() => ({}));
                     console.error("ERRO DETALHADO DA API:", data);
                     throw new Error(`Falha: ${data.details || response.statusText}`);
                 }
 
-                console.log("Fetch respondido. Status:", response.status);
-                console.log("Dados recebidos da IA:", data);
+                // Lida com Streaming
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullText = "";
 
-                // Remove loading
+                // Remove loading e cria a bolha da IA vazia
                 document.getElementById(loadingId).remove();
 
-                // Append AI real response
-                appendMessage(data.reply, false, !!imageToSend);
+                // Adiciona mensagem vazia e pega sua bolha
+                appendMessage("", false, !!imageToSend, false);
+                const msgDivs = messagesContainer.querySelectorAll('.msg.ai');
+                const lastMsgDiv = msgDivs[msgDivs.length - 1];
+                const bubble = lastMsgDiv.querySelector('.msg-bubble');
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    fullText += chunk;
+
+                    // Atualiza o conteúdo da bolha em tempo real
+                    bubble.innerHTML = formatMarkdown(fullText);
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+
+                // Após finalizar o stream, salva no histórico
+                chatHistory.push({ role: 'model', text: fullText });
+                // Sincroniza com Supabase
+                if (typeof window.currentUser !== 'undefined' && window.currentUser) {
+                    window.supabaseClient.from('profiles').update({ chat_history: chatHistory }).eq('id', window.currentUser.id)
+                        .then(({ error }) => { if (error) console.error("History sync err:", error) });
+                }
+
+                // Deduct credits if image
+                if (!!imageToSend) {
+                    credits -= 5;
+                    if (credits < 0) credits = 0;
+                    document.getElementById('credit-count').textContent = credits;
+                    if (typeof window.currentUser !== 'undefined' && window.currentUser) {
+                        window.supabaseClient.from('profiles').update({ credits: credits }).eq('id', window.currentUser.id)
+                            .then(({ error }) => { if (error) console.error("Credit update err:", error) });
+                    }
+                }
 
             } catch (error) {
-                document.getElementById(loadingId).remove();
+                const loadingEl = document.getElementById(loadingId);
+                if (loadingEl) loadingEl.remove();
 
                 let errorMsg = "Desculpe, ocorreu um erro ao conectar com a IA. Verifique o console interno (F12).";
                 if (error.message.includes('429') || error.message.includes('quota') || error.message.includes('RESOURCE_EXHAUSTED')) {
