@@ -75,13 +75,13 @@ app.post('/api/chat', async (req, res) => {
         const { message, imageBase64, history } = req.body;
         if (!message && !imageBase64) return res.status(400).json({ error: 'Mensagem ou imagem obrigatória' });
 
-        const model = "gemini-1.5-flash-latest";
+        const model = "gemini-1.5-flash";
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
 
         let contents = [];
         if (history && Array.isArray(history)) {
             let lastRole = null;
-            history.slice(-4).forEach(h => {
+            history.slice(-6).forEach(h => {
                 const role = (h.role === 'model' || h.role === 'assistant') ? 'model' : 'user';
                 if (role !== lastRole) {
                     contents.push({ role, parts: [{ text: h.text || "..." }] });
@@ -99,20 +99,12 @@ app.post('/api/chat', async (req, res) => {
                 currentParts.push({ inline_data: { mime_type: matches[1], data: matches[2] } });
             }
         }
-        // Prepend instructions to the message for maximum compatibility with API v1
-        const systemPrompt = "Você é o Nutrik.IA. Analise a imagem e informe: ALIMENTOS, GRAMES ESTIMADAS e MACRONUTRIENTES (P, C, G e Calorias). Use <strong> apenas em números. Responda direto, sem introduções longas.";
-
-        if (currentParts.length > 0 && currentParts[0].text) {
-            currentParts[0].text = systemPrompt + "\n\n" + currentParts[0].text;
-        } else {
-            currentParts.unshift({ text: systemPrompt });
-        }
-
         contents.push({ role: "user", parts: currentParts });
 
         const payload = {
             contents,
-            generationConfig: { maxOutputTokens: 1024, temperature: 0.1 }
+            system_instruction: { parts: [{ text: "Você é o Nutrik.IA. Analise a imagem e informe: ALIMENTOS, GRAMAS ESTIMADAS e MACRONUTRIENTES (P, C, G e Calorias). Use <strong> apenas em números. Responda direto, sem introduções longas." }] },
+            generationConfig: { maxOutputTokens: 2048, temperature: 0.1 }
         };
 
         const response = await fetch(url, {
