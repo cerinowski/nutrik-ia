@@ -124,28 +124,33 @@ app.post('/api/chat', async (req, res) => {
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.setHeader('Transfer-Encoding', 'chunked');
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            const chunk = decoder.decode(value, { stream: true });
-            const matches = chunk.match(/"text":\s*"((?:[^"\\]|\\.)*)"/g);
+        // Em Node.js com node-fetch v2, response.body é um Readable Stream do Node
+        response.body.on('data', (chunk) => {
+            const text = chunk.toString();
+            // Busca o campo "text" dentro do chunk JSON do Google
+            const matches = text.match(/"text":\s*"((?:[^"\\]|\\.)*)"/g);
             if (matches) {
                 matches.forEach(m => {
-                    const textMatch = m.match(/"text":\s*"(.*)"/);
-                    if (textMatch && textMatch[1]) {
+                    const t = m.match(/"text":\s*"(.*)"/);
+                    if (t && t[1]) {
                         try {
-                            const cleanText = JSON.parse(`"${textMatch[1]}"`);
+                            const cleanText = JSON.parse(`"${t[1]}"`);
                             res.write(cleanText);
                         } catch (e) { }
                     }
                 });
             }
-        }
-        res.end();
+        });
+
+        response.body.on('end', () => {
+            res.end();
+        });
+
+        response.body.on('error', (err) => {
+            console.error('Streaming Response Error:', err);
+            if (!res.headersSent) res.status(500).send("Erro no stream.");
+            else res.end();
+        });
 
     } catch (error) {
         console.error('Chat Critical Error:', error);
