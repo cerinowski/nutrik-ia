@@ -31,7 +31,7 @@ app.get('/api/health', (req, res) => {
 // Endpoint para listar modelos disponíveis
 app.get('/api/gemini-models', validateApiKey, async (req, res) => {
     try {
-        const r = await fetch(`https://generativelanguage.googleapis.com/v1/models`, {
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models`, {
             headers: { "x-goog-api-key": GEMINI_API_KEY },
         });
         const data = await r.json();
@@ -47,8 +47,8 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
         const { message, imageBase64, history } = req.body;
         if (!message && !imageBase64) return res.status(400).json({ error: 'Mensagem ou imagem obrigatória' });
 
-        const model = "gemini-2.0-flash";
-        const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent`;
+        const model = "gemini-1.5-flash";
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
         // 💡 SIMULAÇÃO DE SYSTEM PROMPT (Padrão Google REST)
         let contents = [
