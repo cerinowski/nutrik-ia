@@ -69,21 +69,20 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Nutrik.AI Backend is running' });
 });
 
-// Chat Endpoint - Optimized for complete responses and 60s timeout
+// Chat Endpoint - REVERTED TO STABLE GENERATE CONTENT
 app.post('/api/chat', async (req, res) => {
-    const startTime = Date.now();
     try {
         const { message, imageBase64, history } = req.body;
         if (!message && !imageBase64) return res.status(400).json({ error: 'Mensagem ou imagem obrigatória' });
 
         const model = "gemini-1.5-flash";
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${GEMINI_API_KEY}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
 
         let contents = [];
-        if (history && Array.isArray(history) && history.length > 0) {
+        if (history && Array.isArray(history)) {
             let lastRole = null;
-            history.slice(-6).forEach(h => {
-                const role = h.role === 'model' || h.role === 'assistant' ? 'model' : 'user';
+            history.slice(-4).forEach(h => {
+                const role = (h.role === 'model' || h.role === 'assistant') ? 'model' : 'user';
                 if (role !== lastRole) {
                     contents.push({ role, parts: [{ text: h.text || "..." }] });
                     lastRole = role;
@@ -97,7 +96,6 @@ app.post('/api/chat', async (req, res) => {
         if (imageBase64) {
             const matches = imageBase64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
             if (matches && matches.length === 3) {
-                if (!message) currentParts.push({ text: "Analise esta refeição detalhadamente: alimentos, gramas estimadas e macronutrientes (P, C, G e Calorias). Use <strong> em números." });
                 currentParts.push({ inline_data: { mime_type: matches[1], data: matches[2] } });
             }
         }
@@ -105,8 +103,8 @@ app.post('/api/chat', async (req, res) => {
 
         const payload = {
             contents,
-            system_instruction: { parts: [{ text: "Você é o Nutrik.IA. Informe sempre: alimentos, gramas estimadas e Macronutrientes. Use <strong> apenas em números. Seja amigável e técnico. NUNCA interrompa o raciocínio." }] },
-            generationConfig: { maxOutputTokens: 2048, temperature: 0.1 }
+            system_instruction: { parts: [{ text: "Você é o Nutrik.IA. Analise a imagem e informe: ALIMENTOS, GRAMAS ESTIMADAS e MACRONUTRIENTES (P, C, G e Calorias). Use <strong> apenas em números. Responda direto, sem introduções longas." }] },
+            generationConfig: { maxOutputTokens: 1024, temperature: 0.1 }
         };
 
         const response = await fetch(url, {
@@ -115,47 +113,22 @@ app.post('/api/chat', async (req, res) => {
             body: JSON.stringify(payload)
         });
 
-        if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            throw new Error(errData.error?.message || 'Erro Google API');
-        }
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error?.message || 'Erro Google API');
 
-        // Set Headers for streaming
-        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        res.setHeader('Transfer-Encoding', 'chunked');
-
-        // Em Node.js com node-fetch v2, response.body é um Readable Stream do Node
-        response.body.on('data', (chunk) => {
-            const text = chunk.toString();
-            // Busca o campo "text" dentro do chunk JSON do Google
-            const matches = text.match(/"text":\s*"((?:[^"\\]|\\.)*)"/g);
-            if (matches) {
-                matches.forEach(m => {
-                    const t = m.match(/"text":\s*"(.*)"/);
-                    if (t && t[1]) {
-                        try {
-                            const cleanText = JSON.parse(`"${t[1]}"`);
-                            res.write(cleanText);
-                        } catch (e) { }
-                    }
-                });
-            }
-        });
-
-        response.body.on('end', () => {
-            res.end();
-        });
-
-        response.body.on('error', (err) => {
-            console.error('Streaming Response Error:', err);
-            if (!res.headersSent) res.status(500).send("Erro no stream.");
-            else res.end();
-        });
+        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Desculpe, não consegui analisar agora.";
+        res.json({ reply });
 
     } catch (error) {
-        console.error('Chat Critical Error:', error);
-        res.status(500).json({ error: 'Erro técnico de IA.', details: error.message });
+        console.error('Chat Error:', error);
+        res.status(500).json({ error: 'Erro na IA', details: error.message });
     }
+});
+
+    } catch (error) {
+    console.error('Chat Critical Error:', error);
+    res.status(500).json({ error: 'Erro técnico de IA.', details: error.message });
+}
 });
 
 app.post('/api/checkout-session', async (req, res) => {
