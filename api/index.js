@@ -31,7 +31,7 @@ app.get('/api/health', (req, res) => {
 // Endpoint para listar modelos disponíveis
 app.get('/api/gemini-models', validateApiKey, async (req, res) => {
     try {
-        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models`, {
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1/models`, {
             headers: { "x-goog-api-key": GEMINI_API_KEY },
         });
         const data = await r.json();
