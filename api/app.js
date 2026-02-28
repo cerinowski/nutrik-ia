@@ -99,11 +99,19 @@ app.post('/api/chat', async (req, res) => {
                 currentParts.push({ inline_data: { mime_type: matches[1], data: matches[2] } });
             }
         }
+        // Prepend instructions to the message for maximum compatibility with API v1
+        const systemPrompt = "Você é o Nutrik.IA. Analise a imagem e informe: ALIMENTOS, GRAMES ESTIMADAS e MACRONUTRIENTES (P, C, G e Calorias). Use <strong> apenas em números. Responda direto, sem introduções longas.";
+
+        if (currentParts.length > 0 && currentParts[0].text) {
+            currentParts[0].text = systemPrompt + "\n\n" + currentParts[0].text;
+        } else {
+            currentParts.unshift({ text: systemPrompt });
+        }
+
         contents.push({ role: "user", parts: currentParts });
 
         const payload = {
             contents,
-            system_instruction: { parts: [{ text: "Você é o Nutrik.IA. Analise a imagem e informe: ALIMENTOS, GRAMAS ESTIMADAS e MACRONUTRIENTES (P, C, G e Calorias). Use <strong> apenas em números. Responda direto, sem introduções longas." }] },
             generationConfig: { maxOutputTokens: 1024, temperature: 0.1 }
         };
 
