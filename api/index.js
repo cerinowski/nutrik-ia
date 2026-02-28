@@ -28,8 +28,8 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
-// ✅ NOVO: Endpoint de Debug sugerido pelo usuário
-app.get('/api/debug-gemini-models', async (req, res) => {
+// ✅ REQUISITO 2: Debug Bruto (Raw Text) para diagnosticar permissões
+app.get('/api/debug-list-models', async (req, res) => {
     try {
         if (!GEMINI_API_KEY) return res.status(500).json({ error: "GEMINI_API_KEY ausente" });
 
@@ -37,6 +37,20 @@ app.get('/api/debug-gemini-models', async (req, res) => {
             headers: { 'x-goog-api-key': GEMINI_API_KEY }
         });
 
+        const text = await r.text(); // <- text, pra não quebrar se não for JSON
+        res.status(r.status).send(text);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Endpoint antigo (mantido para compatibilidade interna)
+app.get('/api/debug-gemini-models', async (req, res) => {
+    try {
+        if (!GEMINI_API_KEY) return res.status(500).json({ error: "GEMINI_API_KEY ausente" });
+        const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
+            headers: { 'x-goog-api-key': GEMINI_API_KEY }
+        });
         const data = await r.json();
         res.status(r.ok ? 200 : r.status).json(data);
     } catch (e) {
@@ -44,13 +58,12 @@ app.get('/api/debug-gemini-models', async (req, res) => {
     }
 });
 
-// ✅ RESTRUTURAÇÃO FINAL COM FALLBACK EM CASCATA (Sugestão do Usuário)
+// ✅ CHAT COM CASCATA (v1beta por padrão)
 app.post('/api/chat', validateApiKey, async (req, res) => {
     try {
         const { message, imageBase64, history } = req.body;
         if (!message && !imageBase64) return res.status(400).json({ error: 'Mensagem ou imagem obrigatória' });
 
-        // 💡 SIMULAÇÃO DE OPT-IN DE SYSTEM PROMPT (Contents-Only REST compatible)
         let contents = [
             {
                 role: "user",
@@ -62,7 +75,6 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
             }
         ];
 
-        // Histórico
         if (history && Array.isArray(history)) {
             let lastRole = null;
             history.slice(-6).forEach(h => {
@@ -78,7 +90,6 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
         let currentParts = [];
         if (message) currentParts.push({ text: message });
 
-        // Tratamento flexível de imagem (URI vs Raw)
         if (imageBase64) {
             const hasDataUri = imageBase64.startsWith("data:");
             if (hasDataUri) {
@@ -101,30 +112,31 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
             generationConfig: { maxOutputTokens: 2048, temperature: 0.2 }
         };
 
-        // ✅ TENTATIVA EM CASCATA (Para nunca mais travar)
+        // ✅ REQUISITO 3: Tentativa em Cascata Robusta
         const candidateModels = [
             process.env.GEMINI_MODEL,
             "gemini-2.0-flash",
             "gemini-1.5-flash-latest",
             "gemini-1.5-flash",
+            "gemini-2.0-flash-exp",
             "gemini-pro"
         ].filter(Boolean);
 
         let lastErr = null;
         let responseData = null;
 
-        for (const modelName of candidateModels) {
-            const cleanModel = modelName.replace('models/', '');
+        for (const model of candidateModels) {
+            const cleanModel = model.replace('models/', '');
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent`;
 
             try {
                 const response = await fetch(url, {
-                    method: 'POST',
+                    method: "POST",
                     headers: {
-                        'Content-Type': 'application/json',
-                        'x-goog-api-key': GEMINI_API_KEY
+                        "Content-Type": "application/json",
+                        "x-goog-api-key": GEMINI_API_KEY,
                     },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(payload),
                 });
 
                 responseData = await response.json();
@@ -140,11 +152,10 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
         }
 
         if (lastErr) {
-            console.error("Gemini Cascade Failure:", lastErr, responseData);
+            console.error("Gemini Cascade Error:", lastErr, responseData);
             throw new Error(lastErr);
         }
 
-        // ✅ LEITURA ROBUSTA: Junta todas as partes da resposta
         let reply = "Não consegui processar a análise.";
         if (responseData.candidates?.length && responseData.candidates[0].content?.parts) {
             const parts = responseData.candidates[0].content.parts;
@@ -210,7 +221,7 @@ app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (re
 });
 
 if (require.main === module) {
-    app.listen(port, () => console.log(`Server running on port ${port}`));
+    app.listen(port, () => console.log(`Server acting on port ${port}`));
 }
 
 module.exports = app;
