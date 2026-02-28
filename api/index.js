@@ -109,7 +109,7 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
 
         const payload = {
             contents,
-            generationConfig: { maxOutputTokens: 2048, temperature: 0.2 }
+            generationConfig: { maxOutputTokens: 8192, temperature: 0.2 }
         };
 
         // ✅ TENTATIVA EM CASCATA (Sincronizada com o Catálogo Real do Usuário)
