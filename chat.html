@@ -310,34 +310,19 @@
                     throw new Error(`Falha: ${data.details || response.statusText}`);
                 }
 
-                // Lida com Streaming
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let fullText = "";
-
-                // Remove loading e cria a bolha da IA vazia
+                // Remove loading e cria a bolha da IA
                 document.getElementById(loadingId).remove();
 
-                // Adiciona mensagem vazia e pega sua bolha
-                appendMessage("", false, !!imageToSend, false);
-                const msgDivs = messagesContainer.querySelectorAll('.msg.ai');
-                const lastMsgDiv = msgDivs[msgDivs.length - 1];
-                const bubble = lastMsgDiv.querySelector('.msg-bubble');
+                const data = await response.json();
+                const fullText = data.reply || "Desculpe, não consegui processar a análise.";
 
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
+                // Adiciona mensagem e preenche a bolha
+                appendMessage(fullText, false, !!imageToSend, false);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-                    const chunk = decoder.decode(value, { stream: true });
-                    fullText += chunk;
-
-                    // Atualiza o conteúdo da bolha em tempo real
-                    bubble.innerHTML = formatMarkdown(fullText);
-                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                }
-
-                // Após finalizar o stream, salva no histórico
+                // Salva no histórico
                 chatHistory.push({ role: 'model', text: fullText });
+
                 // Sincroniza com Supabase
                 if (typeof window.currentUser !== 'undefined' && window.currentUser) {
                     window.supabaseClient.from('profiles').update({ chat_history: chatHistory }).eq('id', window.currentUser.id)
