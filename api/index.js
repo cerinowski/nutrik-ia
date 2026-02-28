@@ -28,7 +28,7 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
-// ✅ Discovery de Modelos na v1
+// Endpoint para listar modelos disponíveis
 app.get('/api/gemini-models', validateApiKey, async (req, res) => {
     try {
         const r = await fetch(`https://generativelanguage.googleapis.com/v1/models`, {
@@ -41,17 +41,28 @@ app.get('/api/gemini-models', validateApiKey, async (req, res) => {
     }
 });
 
-// ✅ PATCH FINAL: Gemini 2.0 Flash na Porta v1
+// ✅ RESTRUTURAÇÃO TOTAL: Gemini REST API (contents-only format)
 app.post('/api/chat', validateApiKey, async (req, res) => {
     try {
         const { message, imageBase64, history } = req.body;
         if (!message && !imageBase64) return res.status(400).json({ error: 'Mensagem ou imagem obrigatória' });
 
-        // CONFIGURAÇÃO SOLICITADA: Gemini 2.0 Flash na v1 estável
         const model = "gemini-2.0-flash";
         const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent`;
 
-        let contents = [];
+        // 💡 SIMULAÇÃO DE SYSTEM PROMPT (Padrão Google REST)
+        let contents = [
+            {
+                role: "user",
+                parts: [{ text: "Você é o Nutrik.IA. Analise alimentos e sempre retorne: ALIMENTOS, GRAMAS ESTIMADAS e MACRONUTRIENTES (P, C, G e Calorias). Use <strong> em números. Responda direto, sem introduções." }]
+            },
+            {
+                role: "model",
+                parts: [{ text: "Entendido. Sou o Nutrik.IA e estou pronto para analisar sua alimentação com precisão técnica." }]
+            }
+        ];
+
+        // Adiciona histórico real (se existir)
         if (history && Array.isArray(history)) {
             let lastRole = null;
             history.slice(-6).forEach(h => {
@@ -67,6 +78,7 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
         let currentParts = [];
         if (message) currentParts.push({ text: message });
 
+        // Tratamento flexível de imagem
         if (imageBase64) {
             const hasDataUri = imageBase64.startsWith("data:");
             if (hasDataUri) {
@@ -84,12 +96,13 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
 
         contents.push({ role: "user", parts: currentParts });
 
+        // ✅ PAYLOAD LIMPO (Apenas contents e generationConfig)
         const payload = {
             contents,
-            system_instruction: {
-                parts: [{ text: "Você é o Nutrik.IA. Analise as refeições e informe: ALIMENTOS, GRAMAS ESTIMADAS e MACRONUTRIENTES (P, C, G e Calorias). Use <strong> em números. Responda direto, sem introduções." }]
-            },
-            generationConfig: { maxOutputTokens: 2048, temperature: 0.1 }
+            generationConfig: {
+                maxOutputTokens: 2048,
+                temperature: 0.2
+            }
         };
 
         const response = await fetch(url, {
@@ -107,11 +120,17 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
             throw new Error(data.error?.message || 'Erro Google API');
         }
 
-        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Desculpe, não consegui processar sua solicitação.";
+        // ✅ LEITURA ROBUSTA: Junta todas as partes da resposta
+        let reply = "Não consegui processar a análise.";
+        if (data.candidates?.length && data.candidates[0].content?.parts) {
+            const parts = data.candidates[0].content.parts;
+            reply = parts.map(p => p.text || "").join("\n");
+        }
+
         res.json({ reply });
 
     } catch (error) {
-        console.error('Chat Error:', error);
+        console.error('Core Logic Error:', error);
         res.status(500).json({ error: 'Erro técnico de IA', details: error.message });
     }
 });
@@ -167,7 +186,7 @@ app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (re
 });
 
 if (require.main === module) {
-    app.listen(port, () => console.log(`Server port ${port}`));
+    app.listen(port, () => console.log(`Server active on port ${port}`));
 }
 
 module.exports = app;
