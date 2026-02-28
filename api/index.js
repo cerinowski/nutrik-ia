@@ -4,7 +4,7 @@ const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy_key');
 
-// Initialize Google Generative AI - PORTA V1 OFICIAL
+// Initialize Google Generative AI
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const supabaseUrl = process.env.SUPABASE_URL || 'https://aoejmzgcgvvtyokfvubn.supabase.co';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || 'dummy_key';
@@ -16,53 +16,102 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
+// Middleware para validar chave de API em endpoints críticos
+const validateApiKey = (req, res, next) => {
+    if (!GEMINI_API_KEY) {
+        return res.status(500).json({ error: "GEMINI_API_KEY não configurada no servidor." });
+    }
+    next();
+};
+
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
-// Route: Chat (STABLE V1)
-app.post('/api/chat', async (req, res) => {
+// NOVO: Endpoint para listar modelos disponíveis (Descoberta)
+app.get('/api/gemini-models', validateApiKey, async (req, res) => {
+    try {
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models`, {
+            headers: { "x-goog-api-key": GEMINI_API_KEY },
+        });
+        const data = await r.json();
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Route: Chat (PATCHED BY USER SUGGESTION)
+app.post('/api/chat', validateApiKey, async (req, res) => {
     try {
         const { message, imageBase64, history } = req.body;
         if (!message && !imageBase64) return res.status(400).json({ error: 'Mensagem ou imagem obrigatória' });
 
-        const model = "gemini-1.5-flash";
-        const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+        // CONFIGURAÇÃO MESTRA: use v1beta (é o endpoint do generateContent na doc)
+        const model = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
         let contents = [];
-        // Instrução injetada diretamente no prompt para evitar erros de versão
-        const systemInstruction = "Você é o Nutrik.IA. Analise as refeições e informe: ALIMENTOS, GRAMAS ESTIMADAS e MACRONUTRIENTES (P, C, G e Calorias). Use <strong> em números. Responda direto, sem introduções.";
 
-        let userMessage = systemInstruction + "\n\n";
-        if (message) userMessage += message;
-        else userMessage += "Analise esta imagem nutricionalmente.";
-
-        // Adiciona histórico curto para não estourar payload
+        // Histórico limitado
         if (history && Array.isArray(history)) {
-            history.slice(-4).forEach(h => {
+            let lastRole = null;
+            history.slice(-6).forEach(h => {
                 const role = (h.role === 'model' || h.role === 'assistant') ? 'model' : 'user';
-                contents.push({ role, parts: [{ text: h.text || "..." }] });
+                if (role !== lastRole) {
+                    contents.push({ role, parts: [{ text: h.text || "..." }] });
+                    lastRole = role;
+                }
             });
+            if (lastRole === 'user' && !message && !imageBase64) contents.pop();
         }
 
-        let currentParts = [{ text: userMessage }];
+        let currentParts = [];
+        if (message) currentParts.push({ text: message });
+
+        // Tratamento flexível de imagem (com ou sem prefixo)
         if (imageBase64) {
-            const matches = imageBase64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
-            if (matches && matches.length === 3) {
-                currentParts.push({ inline_data: { mime_type: matches[1], data: matches[2] } });
+            const hasDataUri = imageBase64.startsWith("data:");
+            if (hasDataUri) {
+                const matches = imageBase64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+                if (matches?.[1] && matches?.[2]) {
+                    currentParts.push({ inline_data: { mime_type: matches[1], data: matches[2] } });
+                }
+            } else {
+                // assume base64 seco (fallback jpeg)
+                currentParts.push({ inline_data: { mime_type: "image/jpeg", data: imageBase64 } });
+            }
+
+            // Se apenas imagem, garante um prompt
+            if (!message) {
+                currentParts.unshift({ text: "Analise esta imagem nutricionalmente: alimentos, gramas estimadas e macronutrientes." });
             }
         }
 
         contents.push({ role: "user", parts: currentParts });
 
+        const payload = {
+            contents,
+            systemInstruction: {
+                parts: [{ text: "Você é o Nutrik.IA. Analise as refeições e informe sempre: ALIMENTOS, GRAMAS ESTIMADAS e MACRONUTRIENTES (P, C, G e Calorias). Use <strong> apenas em números. Responda direto, sem introduções." }]
+            },
+            generationConfig: { maxOutputTokens: 2048, temperature: 0.1 }
+        };
+
         const response = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents, generationConfig: { maxOutputTokens: 1024, temperature: 0.1 } })
+            headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': GEMINI_API_KEY
+            },
+            body: JSON.stringify(payload)
         });
 
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error?.message || 'Erro Google API');
+        if (!response.ok) {
+            console.error("Gemini Error Details:", data);
+            throw new Error(data.error?.message || 'Erro Google API');
+        }
 
         const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Desculpe, não consegui analisar agora.";
         res.json({ reply });
