@@ -28,10 +28,10 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
-// ✅ PASSO OBRIGATÓRIO: Discovery de Modelos (conforme sugerido)
+// ✅ Discovery de Modelos na v1
 app.get('/api/gemini-models', validateApiKey, async (req, res) => {
     try {
-        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models`, {
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1/models`, {
             headers: { "x-goog-api-key": GEMINI_API_KEY },
         });
         const data = await r.json();
@@ -41,19 +41,17 @@ app.get('/api/gemini-models', validateApiKey, async (req, res) => {
     }
 });
 
-// ✅ PATCH DIRETO: Endpoint de Chat com v1beta e Headers Oficiais
+// ✅ PATCH FINAL: Gemini 2.0 Flash na Porta v1
 app.post('/api/chat', validateApiKey, async (req, res) => {
     try {
         const { message, imageBase64, history } = req.body;
         if (!message && !imageBase64) return res.status(400).json({ error: 'Mensagem ou imagem obrigatória' });
 
-        // CONFIGURAÇÃO MESTRA: use v1beta (conforme referência oficial)
-        const model = process.env.GEMINI_MODEL || "gemini-1.5-flash";
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+        // CONFIGURAÇÃO SOLICITADA: Gemini 2.0 Flash na v1 estável
+        const model = "gemini-2.0-flash";
+        const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent`;
 
         let contents = [];
-
-        // Histórico limitado (User <-> Model)
         if (history && Array.isArray(history)) {
             let lastRole = null;
             history.slice(-6).forEach(h => {
@@ -63,14 +61,12 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
                     lastRole = role;
                 }
             });
-            // Garante que o último não seja User se já formos enviar um novo User
             if (lastRole === 'user' && (message || imageBase64)) contents.pop();
         }
 
         let currentParts = [];
         if (message) currentParts.push({ text: message });
 
-        // ✅ AJUSTE EXTRA: Tratamento resiliente de Base64 (URI vs Raw)
         if (imageBase64) {
             const hasDataUri = imageBase64.startsWith("data:");
             if (hasDataUri) {
@@ -79,12 +75,9 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
                     currentParts.push({ inline_data: { mime_type: matches[1], data: matches[2] } });
                 }
             } else {
-                // base64 cru (assumindo jpeg como fallback)
                 currentParts.push({ inline_data: { mime_type: "image/jpeg", data: imageBase64 } });
             }
-
-            // Se apenas imagem, injeta prompt guia
-            if (currentParts.length === 1 && !message) {
+            if (!message) {
                 currentParts.unshift({ text: "Analise esta imagem nutricionalmente: alimentos, gramas estimadas e macronutrientes." });
             }
         }
@@ -93,7 +86,6 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
 
         const payload = {
             contents,
-            // ✅ CORREÇÃO: system_instruction (snake_case para API REST)
             system_instruction: {
                 parts: [{ text: "Você é o Nutrik.IA. Analise as refeições e informe: ALIMENTOS, GRAMAS ESTIMADAS e MACRONUTRIENTES (P, C, G e Calorias). Use <strong> em números. Responda direto, sem introduções." }]
             },
@@ -104,14 +96,14 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-goog-api-key': GEMINI_API_KEY // Header oficial
+                'x-goog-api-key': GEMINI_API_KEY
             },
             body: JSON.stringify(payload)
         });
 
         const data = await response.json();
         if (!response.ok) {
-            console.error("Gemini Critical Error:", data);
+            console.error("Gemini Error:", data);
             throw new Error(data.error?.message || 'Erro Google API');
         }
 
@@ -119,7 +111,7 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
         res.json({ reply });
 
     } catch (error) {
-        console.error('Core Chat Error:', error);
+        console.error('Chat Error:', error);
         res.status(500).json({ error: 'Erro técnico de IA', details: error.message });
     }
 });
@@ -175,7 +167,7 @@ app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (re
 });
 
 if (require.main === module) {
-    app.listen(port, () => console.log(`Backend server active on port ${port}`));
+    app.listen(port, () => console.log(`Server port ${port}`));
 }
 
 module.exports = app;
