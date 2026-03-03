@@ -70,6 +70,23 @@
             border: 1.5px solid #000;
             margin-bottom: 12px;
         }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .header-actions a,
+        .header-actions button {
+            text-decoration: none;
+            color: inherit;
+            background: none;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
     </style>
 </head>
 
@@ -80,21 +97,23 @@
             <span class="logo-text">nutrik</span>
             <span class="logo-bubble" style="font-size: 24px; padding: 2px 8px 4px 6px;">.ia</span>
         </div>
-        <div style="display: flex; gap: 12px; align-items: center;">
-            <a href="chat.html" class="upgrade-btn" style="text-decoration: none;">Ir para Chat 🤖</a>
-            <i data-lucide="log-out" id="logout-btn"
-                style="width: 20px; height: 20px; cursor: pointer; color: #DC2626;"></i>
+        <div class="header-actions">
+            <a href="profile.html" title="Meu Perfil">
+                <i data-lucide="user" style="width: 20px; height: 20px;"></i>
+            </a>
+            <a href="chat.html" class="upgrade-btn">Ir para Chat 🤖</a>
+            <button id="logout-btn" title="Sair">
+                <i data-lucide="log-out" style="width: 20px; height: 20px; color: #DC2626;"></i>
+            </button>
         </div>
     </div>
 
     <div class="dashboard-grid">
-        <!-- Boas Vindas -->
         <div class="card card-full" style="background: #000; color: #fff;">
-            <h2 id="user-greeting" style="font-family: 'Outfit', sans-serif; font-size: 28px;">Olá, Campeão! 🚀</h2>
+            <h2 id="user-greeting" style="font-family: 'Outfit', sans-serif; font-size: 28px;">Olá! 🚀</h2>
             <p style="opacity: 0.8;">Vamos ver como está seu progresso hoje.</p>
         </div>
 
-        <!-- Macros do Dia -->
         <div class="card">
             <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
                 <i data-lucide="flame" style="color: #FF4500;"></i> Resumo de Hoje
@@ -116,11 +135,10 @@
             </div>
 
             <div style="text-align: right; font-weight: 800; font-size: 18px; margin-top: 10px;">
-                <span id="current-cals">0</span> / <span id="target-cals">2000</span> kcal
+                <span id="current-cals">0</span> / <span id="target-cals">---</span> kcal
             </div>
         </div>
 
-        <!-- Peso Atual -->
         <div class="card">
             <h3 style="margin-bottom: 12px;">📊 Registro de Peso</h3>
             <p style="font-size: 14px; color: #666; margin-bottom: 16px;">Mantenha seu peso atualizado para o gráfico.
@@ -139,7 +157,6 @@
             </div>
         </div>
 
-        <!-- Gráfico de Evolução -->
         <div class="card card-full">
             <h3 style="margin-bottom: 20px;">📈 Sua Evolução</h3>
             <canvas id="weightChart" style="width: 100%; height: 300px;"></canvas>
@@ -149,6 +166,75 @@
     <script type="module" src="config.js"></script>
     <script>
         let chart;
+
+        async function refreshDailyMacros(supabase, userId, targetCals) {
+            const today = new Date().toISOString().split('T')[0];
+            const { data: meals } = await supabase.from('meals')
+                .select('*')
+                .eq('user_id', userId)
+                .gte('created_at', today);
+
+            if (meals) {
+                const total = meals.reduce((acc, m) => ({
+                    cal: acc.cal + (m.calories || 0),
+                    pro: acc.pro + (m.protein || 0),
+                    carb: acc.carb + (m.carbs || 0),
+                    fat: acc.fat + (m.fat || 0)
+                }), { cal: 0, pro: 0, carb: 0, fat: 0 });
+
+                document.getElementById('current-cals').textContent = total.cal;
+
+                const targetPro = 150;
+                const targetCarb = 200;
+                const targetFat = 70;
+
+                const pctPro = Math.min((total.pro / targetPro) * 100, 100);
+                const pctCarb = Math.min((total.carb / targetCarb) * 100, 100);
+                const pctFat = Math.min((total.fat / targetFat) * 100, 100);
+
+                document.getElementById('bar-protein').style.width = `${pctPro}%`;
+                document.getElementById('bar-carbs').style.width = `${pctCarb}%`;
+                document.getElementById('bar-fat').style.width = `${pctFat}%`;
+
+                if (total.cal > targetCals) document.getElementById('current-cals').style.color = '#DC2626';
+            }
+        }
+
+        async function refreshWeight(supabase, userId) {
+            const { data: history } = await supabase.from('weight_history')
+                .select('*').eq('user_id', userId).order('measured_at', { ascending: true });
+
+            if (history && history.length > 0) {
+                document.getElementById('weight-start').textContent = `${history[0].weight}kg`;
+                const labels = history.map(h => new Date(h.measured_at).toLocaleDateString('pt-BR'));
+                const weights = history.map(h => h.weight);
+
+                if (chart) chart.destroy();
+                const ctx = document.getElementById('weightChart').getContext('2d');
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Peso (kg)',
+                            data: weights,
+                            borderColor: '#D4FF00',
+                            backgroundColor: 'rgba(212, 255, 0, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            pointBackgroundColor: '#000',
+                            borderWidth: 3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: false } }
+                    }
+                });
+            }
+        }
+
         async function initDashboard() {
             if (!window.supabaseClient) {
                 setTimeout(initDashboard, 50);
@@ -161,102 +247,19 @@
 
             const userId = session.user.id;
 
-            // 1. Carregar Perfil
             const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
+            let targetCals = 2000;
             if (profile) {
-                document.getElementById('user-greeting').textContent = `Olá, ${profile.full_name.split(' ')[0]}! 🚀`;
+                document.getElementById('user-greeting').textContent = `Olá, ${profile.full_name?.split(' ')[0] || 'Campeão'}! 🚀`;
                 document.getElementById('weight-target').textContent = `${profile.target_weight || '--'}kg`;
-                // Cálculo básico de TDEE (Simplificado para o MVP)
-                const targetCals = profile.gender === 'male' ? 2500 : 2000;
+                targetCals = profile.gender === 'male' ? 2500 : 2000;
                 document.getElementById('target-cals').textContent = targetCals;
-
-                // 2. Carregar Macros do Dia (Novo!)
-                await refreshDailyMacros(userId, targetCals);
             }
 
-            // Função para carregar refeições de hoje
-            async function refreshDailyMacros(uid, targetCals) {
-                const today = new Date().toISOString().split('T')[0];
-                const { data: meals } = await supabase.from('meals')
-                    .select('*')
-                    .eq('user_id', uid)
-                    .gte('created_at', today);
+            await refreshDailyMacros(supabase, userId, targetCals);
+            await refreshWeight(supabase, userId);
 
-                if (meals) {
-                    const total = meals.reduce((acc, m) => ({
-                        cal: acc.cal + (m.calories || 0),
-                        pro: acc.pro + (m.protein || 0),
-                        carb: acc.carb + (m.carbs || 0),
-                        fat: acc.fat + (m.fat || 0)
-                    }), { cal: 0, pro: 0, carb: 0, fat: 0 });
-
-                    document.getElementById('current-cals').textContent = total.cal;
-
-                    // Metas sugeridas (macros)
-                    const targetPro = 150; // g
-                    const targetCarb = 200; // g
-                    const targetFat = 70; // g
-
-                    const pctCal = Math.min((total.cal / targetCals) * 100, 100);
-                    const pctPro = Math.min((total.pro / targetPro) * 100, 100);
-                    const pctCarb = Math.min((total.carb / targetCarb) * 100, 100);
-                    const pctFat = Math.min((total.fat / targetFat) * 100, 100);
-
-                    document.getElementById('bar-protein').style.width = `${pctPro}%`;
-                    document.getElementById('bar-carbs').style.width = `${pctCarb}%`;
-                    document.getElementById('bar-fat').style.width = `${pctFat}%`;
-
-                    if (total.cal > targetCals) document.getElementById('current-cals').style.color = '#DC2626';
-                }
-                // 2. Carregar Histórico de Peso e Gráfico
-                await refreshWeight();
-            }
-
-            async function refreshWeight() {
-                const supabase = window.supabaseClient;
-                const { data: { session } } = await supabase.auth.getSession();
-                const userId = session.user.id;
-
-                const { data: history } = await supabase.from('weight_history')
-                    .select('*').eq('user_id', userId).order('measured_at', { ascending: true });
-
-                if (history && history.length > 0) {
-                    document.getElementById('weight-start').textContent = `${history[0].weight}kg`;
-                    const labels = history.map(h => new Date(h.measured_at).toLocaleDateString('pt-BR'));
-                    const weights = history.map(h => h.weight);
-
-                    if (chart) chart.destroy();
-                    const ctx = document.getElementById('weightChart').getContext('2d');
-                    chart = new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: labels,
-                            datasets: [{
-                                label: 'Peso (kg)',
-                                data: weights,
-                                borderColor: '#D4FF00',
-                                backgroundColor: 'rgba(212, 255, 0, 0.1)',
-                                tension: 0.4,
-                                fill: true,
-                                pointBackgroundColor: '#000',
-                                borderWidth: 3
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            plugins: { legend: { display: false } },
-                            scales: { y: { beginAtZero: false } }
-                        }
-                    });
-                }
-            }
-
-            // 3. Salvar Novo Peso
             document.getElementById('save-weight').onclick = async () => {
-                const supabase = window.supabaseClient;
-                const { data: { session } } = await supabase.auth.getSession();
-                const userId = session.user.id;
-
                 const w = parseFloat(document.getElementById('weight-now').value);
                 if (!w) return alert('Insira um peso válido');
 
@@ -264,17 +267,17 @@
                 if (!error) {
                     await supabase.from('profiles').update({ current_weight: w }).eq('id', userId);
                     alert('Peso registrado com sucesso!');
-                    refreshWeight();
+                    refreshWeight(supabase, userId);
                 }
             };
 
-            // Logout
             document.getElementById('logout-btn').onclick = async () => {
-                await window.supabaseClient.auth.signOut();
+                await supabase.auth.signOut();
                 window.location.href = 'index.html';
             };
+        }
 
-            initDashboard();
+        initDashboard();
     </script>
 </body>
 

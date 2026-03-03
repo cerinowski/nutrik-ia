@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nutrik.IA - Editar Perfil</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .profile-card {
+            max-width: 500px;
+            margin: 40px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            border: 1.5px solid #000;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .btn-goal {
+            border: 1.5px solid #E5E7EB;
+            padding: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 13px;
+        }
+
+        .btn-goal.active {
+            background: var(--primary);
+            border-color: #000;
+        }
+    </style>
+</head>
+
+<body style="background: #F9FAFB;">
+    <div class="chat-header" style="background: #FFF; border-bottom: 1.5px solid #000;">
+        <div class="logo-container" style="font-size: 24px;">
+            <span class="logo-text">nutrik</span>
+            <span class="logo-bubble" style="font-size: 24px; padding: 2px 8px 4px 6px;">.ia</span>
+        </div>
+        <a href="dashboard.html" style="text-decoration: none; color: #000; font-weight: 600;">Voltar</a>
+    </div>
+
+    <div class="profile-card">
+        <h1 style="font-family: 'Outfit'; margin-bottom: 20px;">Seu Perfil</h1>
+        <form id="profile-form">
+            <div class="form-group">
+                <label>Nome Completo</label>
+                <input type="text" id="full_name" required>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Idade</label>
+                    <input type="number" id="age" required>
+                </div>
+                <div class="form-group">
+                    <label>Gênero</label>
+                    <select id="gender" style="width: 100%; padding: 10px; border-radius: 8px;">
+                        <option value="male">Masculino</option>
+                        <option value="female">Feminino</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Peso Atual (kg)</label>
+                    <input type="number" id="current_weight" step="0.1" required>
+                </div>
+                <div class="form-group">
+                    <label>Meta de Peso (kg)</label>
+                    <input type="number" id="target_weight" step="0.1" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Altura (cm)</label>
+                <input type="number" id="height" required>
+            </div>
+            <label style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 10px;">Objetivo</label>
+            <div class="grid-2" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom: 20px;">
+                <div class="btn-goal" data-goal="lose">Emagrecer</div>
+                <div class="btn-goal" data-goal="maintain">Manter</div>
+                <div class="btn-goal" data-goal="gain">Ganhar</div>
+            </div>
+            <button type="submit" class="btn-primary" style="width: 100%;">Salvar Alterações</button>
+        </form>
+    </div>
+
+    <script type="module" src="config.js"></script>
+    <script>
+        let selectedGoal = 'maintain';
+        async function initProfile() {
+            if (!window.supabaseClient) { setTimeout(initProfile, 50); return; }
+            const supabase = window.supabaseClient;
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) { window.location.href = 'index.html'; return; }
+
+            const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+            if (profile) {
+                document.getElementById('full_name').value = profile.full_name || '';
+                document.getElementById('age').value = profile.age || '';
+                document.getElementById('gender').value = profile.gender || 'male';
+                document.getElementById('current_weight').value = profile.current_weight || '';
+                document.getElementById('target_weight').value = profile.target_weight || '';
+                document.getElementById('height').value = profile.height || '';
+                selectedGoal = profile.goal || 'maintain';
+                updateGoalUI();
+            }
+
+            const goals = document.querySelectorAll('.btn-goal');
+            goals.forEach(btn => {
+                btn.onclick = () => { selectedGoal = btn.dataset.goal; updateGoalUI(); };
+            });
+
+            function updateGoalUI() {
+                goals.forEach(g => g.classList.toggle('active', g.dataset.goal === selectedGoal));
+            }
+
+            document.getElementById('profile-form').onsubmit = async (e) => {
+                e.preventDefault();
+                const pData = {
+                    id: session.user.id,
+                    email: session.user.email,
+                    full_name: document.getElementById('full_name').value,
+                    age: parseInt(document.getElementById('age').value),
+                    gender: document.getElementById('gender').value,
+                    current_weight: parseFloat(document.getElementById('current_weight').value),
+                    target_weight: parseFloat(document.getElementById('target_weight').value),
+                    height: parseInt(document.getElementById('height').value),
+                    goal: selectedGoal,
+                    updated_at: new Date().toISOString()
+                };
+                const { error } = await supabase.from('profiles').upsert(pData);
+                if (!error) {
+                    alert('Perfil atualizado!');
+                    window.location.href = 'dashboard.html';
+                } else {
+                    alert('Erro: ' + error.message);
+                }
+            };
+        }
+        initProfile();
+    </script>
+</body>
+
+</html>
