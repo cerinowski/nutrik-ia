@@ -113,14 +113,17 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
             generationConfig: { maxOutputTokens: 8192, temperature: 0.2 }
         };
 
-        // ✅ MEGA CASCATA ANTI-COTA PURIFICADA (Apenas modelos 2.5 e 2.0 Estáveis)
+        // ✅ MEGA CASCATA ANTI-COTA PURIFICADA (Apenas modelos 2.5 e 2.0 Estáveis + Fallbacks 1.5)
         // Ocultado do usuário: Tenta modelos estáveis isoladamente.
         // Removido o GEMINI_MODEL e modelos -exp para evitar erros Not Found da Google.
         const candidateModels = [
             "gemini-2.5-flash",
             "gemini-2.5-pro",
             "gemini-2.0-flash",
-            "gemini-1.5-flash" // O Tanque de Guerra Gratuito "Sem Limite Zero" Absoluto
+            "gemini-2.0-flash-lite-preview-02-05", // Novo modelo econômico oficial da Google
+            "gemini-1.5-flash-latest",            // Alias forçado de compatibilidade legada
+            "gemini-1.5-flash-8b",                // Versão ultraleve 1.5
+            "gemini-1.5-pro"                      // Último recurso de fallback
         ].filter(Boolean);
 
         let lastErr = null;
