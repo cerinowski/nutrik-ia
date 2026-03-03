@@ -162,32 +162,50 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
             reply = parts.map(p => p.text || "").join("\n");
         }
 
-        // ✅ Persistência de Dados (Se houver macros na resposta)
-        const jsonMatch = reply.match(/```json\n([\s\S]*?)\n```/);
+        // ✅ Persistência de Dados (Robusta e Flexível)
+        const jsonMatch = reply.match(/```json\s*([\s\S]*?)\s*```/i);
         let nutritionData = null;
         if (jsonMatch && jsonMatch[1]) {
             try {
-                nutritionData = JSON.parse(jsonMatch[1]);
-                // Remover o bloco JSON da resposta exibida para o usuário
+                const rawJson = jsonMatch[1].trim();
+                const parsed = JSON.parse(rawJson);
+
+                // Normalizar chaves para minúsculo e suportar PT/EN
+                nutritionData = {};
+                for (let key in parsed) {
+                    nutritionData[key.toLowerCase()] = parsed[key];
+                }
+
+                // Limpar a resposta exibida para o usuário (remover o código JSON)
                 reply = reply.replace(jsonMatch[0], "").trim();
 
-                // Salvar no banco (Supabase) se tiver userId no header/body
                 const userId = req.body.userId || req.headers['x-user-id'];
-                if (userId && nutritionData.calories > 0) {
-                    await supabaseAdmin.from('meals').insert({
+                console.log(`[MEAL LOG] Usuário: ${userId}, Dados Extraídos:`, nutritionData);
+
+                if (userId && (nutritionData.calories || nutritionData.calorias || nutritionData.kcal) > 0) {
+                    const calories = parseFloat(nutritionData.calories || nutritionData.calorias || nutritionData.kcal || 0);
+                    const protein = parseFloat(nutritionData.protein || nutritionData.proteina || 0);
+                    const carbs = parseFloat(nutritionData.carbs || nutritionData.carboidratos || 0);
+                    const fat = parseFloat(nutritionData.fat || nutritionData.gordura || 0);
+
+                    const { error: insertError } = await supabaseAdmin.from('meals').insert({
                         user_id: userId,
-                        description: nutritionData.description || "Refeição analisada",
-                        calories: nutritionData.calories,
-                        protein: nutritionData.protein,
-                        carbs: nutritionData.carbs,
-                        fat: nutritionData.fat,
-                        image_url: imageBase64 ? "base64_stored" : null // Em produção, usaríamos Storage
+                        description: nutritionData.description || nutritionData.descricao || "Refeição analisada",
+                        calories,
+                        protein,
+                        carbs,
+                        fat,
+                        image_url: imageBase64 ? "base64_stored" : null
                     });
+
+                    if (insertError) console.error("Erro ao inserir refeição no Supabase:", insertError);
+                    else console.log("Refeição registrada com sucesso no banco!");
                 }
             } catch (e) {
-                console.error("Erro ao processar JSON de nutrição:", e);
+                console.error("Erro ao processar JSON de nutrição:", e, "Payload:", jsonMatch[1]);
             }
         }
+
 
         res.json({ reply, nutrition: nutritionData });
 

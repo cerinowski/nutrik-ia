@@ -163,11 +163,15 @@
         let chart;
 
         async function refreshDailyMacros(supabase, userId, targetCals) {
-            const today = new Date().toISOString().split('T')[0];
+            // Filtro para o dia de hoje (considerando o início do dia no fuso local)
+            const now = new Date();
+            const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+
             const { data: meals, error } = await supabase.from('meals')
                 .select('*')
                 .eq('user_id', userId)
-                .gte('created_at', today);
+                .gte('created_at', startOfDay);
+
 
             if (meals) {
                 const total = meals.reduce((acc, m) => ({
