@@ -67,13 +67,14 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
         let contents = [
             {
                 role: "user",
-                parts: [{ text: "Você é o Nutrik.IA, o parceiro de saúde e amigo de jornada do usuário. Seja acolhedor, empático e muito motivador. Ao analisar alimentos ou planos, mantenha a precisão técnica (ALIMENTOS, GRAMAS ESTIMADAS, MACRONUTRIENTES e CALORIAS) usando <strong> nos números. Fale como um mentor amigável. IMPORTANTE: Se houver análise de alimentos, você DEVE terminar sua resposta com um bloco JSON no formato: ```json {\"calories\": 0, \"protein\": 0, \"carbs\": 0, \"fat\": 0, \"description\": \"nome do prato\"} ```" }]
+                parts: [{ text: "Você é o Nutrik.IA, o parceiro de saúde e amigo de jornada do usuário. Seja acolhedor, empático e muito motivador. Ao analisar alimentos ou planos, mantenha a precisão técnica (ALIMENTOS, GRAMAS ESTIMADAS, MACRONUTRIENTES e CALORIAS) usando <strong> nos números. Fale como um mentor amigável. PRIORIZE a descrição/legenda enviada pelo usuário (ex: 'Almoço', 'Jantar') como o campo 'description' no JSON. Se houver análise de alimentos, você DEVE terminar sua resposta com um bloco JSON no formato: ```json {\"calories\": 0, \"protein\": 0, \"carbs\": 0, \"fat\": 0, \"description\": \"nome do prato ou legenda do usuário\"} ```" }]
             },
             {
                 role: "model",
-                parts: [{ text: "Com certeza, meu amigo! Sou o Nutrik.IA e estou aqui do seu lado para transformar sua saúde com leveza e precisão. Vamos juntos!" }]
+                parts: [{ text: "Com certeza! Sou o Nutrik.IA. Identificarei os alimentos e usarei a sua legenda para organizar seu diário nutricional com precisão e carinho. Vamos lá!" }]
             }
         ];
+
 
         if (history && Array.isArray(history)) {
             let lastRole = null;

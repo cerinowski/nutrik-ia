@@ -243,6 +243,8 @@
                 // Compress before generating final Base64 memory usage
                 currentImageBase64 = await resizeImage(file);
                 imagePreview.src = currentImageBase64;
+                chatInput.placeholder = "Dê uma legenda (ex: Almoço) ou apenas envie...";
+                chatInput.focus();
             }
         });
 
@@ -251,7 +253,9 @@
             imagePreview.src = '';
             imagePreviewContainer.style.display = 'none';
             fileInput.value = '';
+            chatInput.placeholder = "Digite uma mensagem ou anexe imagem...";
         });
+
 
         async function handleSend() {
             const text = chatInput.value.trim();
