@@ -432,14 +432,17 @@
                         const avatarEl = document.querySelector('.avatar');
                         if (avatarEl) avatarEl.textContent = email.substring(0, 2).toUpperCase();
 
-                        // Load real credits and chat_history from database
+                        // Load real profile details (including health metrics), credits and chat_history
                         const { data, error } = await supabase
                             .from('profiles')
-                            .select('credits, chat_history')
+                            .select('*')
                             .eq('id', currentUser.id)
                             .single();
 
                         if (!error && data) {
+                            // Merge profile payload onto global user so Chat payload sends it to API
+                            window.currentUser = { ...currentUser, ...data };
+
                             credits = data.credits !== null && data.credits !== undefined ? data.credits : 0;
 
                             // Parse if it came as string because of manual DB edit
