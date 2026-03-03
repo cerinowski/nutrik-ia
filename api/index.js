@@ -188,20 +188,29 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
                     const protein = parseFloat(nutritionData.protein || nutritionData.proteina || 0);
                     const carbs = parseFloat(nutritionData.carbs || nutritionData.carboidratos || 0);
                     const fat = parseFloat(nutritionData.fat || nutritionData.gordura || 0);
+                    const finalDesc = nutritionData.description || nutritionData.descricao || message || "Refeição analisada";
 
-                    const { error: insertError } = await supabaseAdmin.from('meals').insert({
+                    console.log(`[DATABASE] Iniciando inserção para ${userId}: ${finalDesc} (${calories}kcal)`);
+
+                    const { data: insertData, error: insertError } = await supabaseAdmin.from('meals').insert({
                         user_id: userId,
-                        description: nutritionData.description || nutritionData.descricao || "Refeição analisada",
+                        description: finalDesc,
                         calories,
                         protein,
                         carbs,
                         fat,
                         image_url: imageBase64 ? "base64_stored" : null
-                    });
+                    }).select();
 
-                    if (insertError) console.error("Erro ao inserir refeição no Supabase:", insertError);
-                    else console.log("Refeição registrada com sucesso no banco!");
+                    if (insertError) {
+                        console.error("[DATABASE ERROR] Falha ao inserir refeição:", insertError);
+                    } else {
+                        console.log("[DATABASE SUCCESS] Refeição inserida ID:", insertData?.[0]?.id);
+                    }
+                } else {
+                    console.warn("[MEAL LOG] Ignorando salvamento: userId ausente ou calorias <= 0", { userId, calories: nutritionData?.calories });
                 }
+
             } catch (e) {
                 console.error("Erro ao processar JSON de nutrição:", e, "Payload:", jsonMatch[1]);
             }
