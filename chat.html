@@ -292,79 +292,66 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
             try {
-                // Call Real backend for Gemini
-                console.log("Iniciando fetch para /api/chat");
-                const payload = {
-                    message: text,
-                    imageBase64: imageToSend,
+                const { data: { session } } = await supabase.auth.getSession();
+                const userId = session?.user?.id;
 
-                    // Send all history except the very last message which is the current one we just appended
-                    // history: chatHistory.slice(0, -1)
-                    // };
-                    // console.log(`Payload montado. Tamanho aprox: ${JSON.stringify(payload).length} bytes`);
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: text,
+                        imageBase64: imageToSend,
+                        userId: userId,
+                        history: chatHistory
+                    })
+                });
 
-                    const { data: { session } } = await supabase.auth.getSession();
-                    const userId = session?.user?.id;
-
-                    const response = await fetch('/api/chat', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            message: text,
-                            imageBase64: imageToSend,
-                            userId: userId,
-                            history: chatHistory
-                        })
-                    });
-
-                    if(!response.ok) {
-                        const data = await response.json().catch(() => ({}));
-                console.error("ERRO DETALHADO DA API:", data);
-                throw new Error(`Falha: ${data.details || response.statusText}`);
-            }
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    console.error("ERRO DETALHADO DA API:", data);
+                    throw new Error(`Falha: ${data.details || response.statusText}`);
+                }
 
                 // Remove loading e cria a bolha da IA
                 document.getElementById(loadingId).remove();
 
-            const data = await response.json();
-            const fullText = data.reply || "Desculpe, não consegui processar a análise.";
 
-            // Adiciona mensagem e preenche a bolha
-            appendMessage(fullText, false, !!imageToSend, false);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                // Adiciona mensagem e preenche a bolha
+                appendMessage(fullText, false, !!imageToSend, false);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-            // Salva no histórico
-            chatHistory.push({ role: 'model', text: fullText });
+                // Salva no histórico
+                chatHistory.push({ role: 'model', text: fullText });
 
-            // Sincroniza com Supabase
-            if (typeof window.currentUser !== 'undefined' && window.currentUser) {
-                window.supabaseClient.from('profiles').update({ chat_history: chatHistory }).eq('id', window.currentUser.id)
-                    .then(({ error }) => { if (error) console.error("History sync err:", error) });
-            }
-
-            // Deduct credits if image
-            if (!!imageToSend) {
-                credits -= 5;
-                if (credits < 0) credits = 0;
-                document.getElementById('credit-count').textContent = credits;
+                // Sincroniza com Supabase
                 if (typeof window.currentUser !== 'undefined' && window.currentUser) {
-                    window.supabaseClient.from('profiles').update({ credits: credits }).eq('id', window.currentUser.id)
-                        .then(({ error }) => { if (error) console.error("Credit update err:", error) });
+                    window.supabaseClient.from('profiles').update({ chat_history: chatHistory }).eq('id', window.currentUser.id)
+                        .then(({ error }) => { if (error) console.error("History sync err:", error) });
                 }
+
+                // Deduct credits if image
+                if (!!imageToSend) {
+                    credits -= 5;
+                    if (credits < 0) credits = 0;
+                    document.getElementById('credit-count').textContent = credits;
+                    if (typeof window.currentUser !== 'undefined' && window.currentUser) {
+                        window.supabaseClient.from('profiles').update({ credits: credits }).eq('id', window.currentUser.id)
+                            .then(({ error }) => { if (error) console.error("Credit update err:", error) });
+                    }
+                }
+
+            } catch (error) {
+                const loadingEl = document.getElementById(loadingId);
+                if (loadingEl) loadingEl.remove();
+
+                let errorMsg = "Desculpe, ocorreu um erro ao conectar com a IA. Verifique o console interno (F12).";
+                if (error.message.includes('429') || error.message.includes('quota') || error.message.includes('RESOURCE_EXHAUSTED')) {
+                    errorMsg = "Opa! O cérebro da IA está respirando no momento (limite de uso grátis do Google atingido). Por favor, espere uns 20 segundinhos e tente novamente! ⏳";
+                }
+
+                appendMessage(errorMsg, false);
+                console.error("ERRO GRAVE NO CHAT:", error);
             }
-
-        } catch (error) {
-            const loadingEl = document.getElementById(loadingId);
-            if (loadingEl) loadingEl.remove();
-
-            let errorMsg = "Desculpe, ocorreu um erro ao conectar com a IA. Verifique o console interno (F12).";
-            if (error.message.includes('429') || error.message.includes('quota') || error.message.includes('RESOURCE_EXHAUSTED')) {
-                errorMsg = "Opa! O cérebro da IA está respirando no momento (limite de uso grátis do Google atingido). Por favor, espere uns 20 segundinhos e tente novamente! ⏳";
-            }
-
-            appendMessage(errorMsg, false);
-            console.error("ERRO GRAVE NO CHAT:", error);
-        }
         }
 
         // Clique no botão
