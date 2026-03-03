@@ -334,11 +334,40 @@
                 // Salva no histórico
                 chatHistory.push({ role: 'model', text: fullText });
 
-                // Sincroniza com Supabase
+                // Sincroniza o Histórico do Chat
                 if (typeof window.currentUser !== 'undefined' && window.currentUser) {
                     window.supabaseClient.from('profiles').update({ chat_history: chatHistory }).eq('id', window.currentUser.id)
                         .then(({ error }) => { if (error) console.error("History sync err:", error) });
                 }
+
+                // 🚀 NOVO E DEFINITIVO: O FRONTEND (Que tem permissão RLS) SALVA A REFEIÇÃO!
+                if (data.nutrition && (data.nutrition.calories || data.nutrition.calorias || data.nutrition.kcal) > 0) {
+                    try {
+                        const cal = parseFloat(data.nutrition.calories || data.nutrition.calorias || data.nutrition.kcal || 0);
+                        const pro = parseFloat(data.nutrition.protein || data.nutrition.proteina || 0);
+                        const car = parseFloat(data.nutrition.carbs || data.nutrition.carboidratos || 0);
+                        const fat = parseFloat(data.nutrition.fat || data.nutrition.gordura || 0);
+                        const desc = data.nutrition.description || data.nutrition.descricao || text || "Refeição";
+
+                        console.log("🔥 Forçando salvamento da refeição pelo Frontend:", { desc, cal, pro, car, fat });
+
+                        const { error: mealErr } = await window.supabaseClient.from('meals').insert({
+                            user_id: window.currentUser.id,
+                            description: desc,
+                            calories: cal,
+                            protein: pro,
+                            carbs: car,
+                            fat: fat
+                        });
+
+                        if (mealErr) console.error("⛔ Erro do banco de dados (RLS?):", mealErr);
+                        else console.log("✅ Refeição salva com sucesso!");
+
+                    } catch (e) {
+                        console.error("⛔ Erro no script frontend de salvamento:", e);
+                    }
+                }
+
 
                 // Deduct credits if image
                 if (!!imageToSend) {
