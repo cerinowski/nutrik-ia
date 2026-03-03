@@ -169,64 +169,100 @@
                 // Cálculo básico de TDEE (Simplificado para o MVP)
                 const targetCals = profile.gender === 'male' ? 2500 : 2000;
                 document.getElementById('target-cals').textContent = targetCals;
+
+                // 2. Carregar Macros do Dia (Novo!)
+                await refreshDailyMacros(userId, targetCals);
             }
 
-            // 2. Carregar Histórico de Peso e Gráfico
-            async function refreshWeight() {
-                const { data: history } = await supabase.from('weight_history')
-                    .select('*').eq('user_id', userId).order('measured_at', { ascending: true });
+            // Função para carregar refeições de hoje
+            async function refreshDailyMacros(uid, targetCals) {
+                const today = new Date().toISOString().split('T')[0];
+                const { data: meals } = await supabase.from('meals')
+                    .select('*')
+                    .eq('user_id', uid)
+                    .gte('created_at', today);
 
-                if (history && history.length > 0) {
-                    document.getElementById('weight-start').textContent = `${history[0].weight}kg`;
-                    const labels = history.map(h => new Date(h.measured_at).toLocaleDateString('pt-BR'));
-                    const weights = history.map(h => h.weight);
+                if (meals) {
+                    const total = meals.reduce((acc, m) => ({
+                        cal: acc.cal + (m.calories || 0),
+                        pro: acc.pro + (m.protein || 0),
+                        carb: acc.carb + (m.carbs || 0),
+                        fat: acc.fat + (m.fat || 0)
+                    }), { cal: 0, pro: 0, carb: 0, fat: 0 });
 
-                    if (chart) chart.destroy();
-                    const ctx = document.getElementById('weightChart').getContext('2d');
-                    chart = new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: labels,
-                            datasets: [{
-                                label: 'Peso (kg)',
-                                data: weights,
-                                borderColor: '#D4FF00',
-                                backgroundColor: 'rgba(212, 255, 0, 0.1)',
-                                tension: 0.4,
-                                fill: true,
-                                pointBackgroundColor: '#000',
-                                borderWidth: 3
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            plugins: { legend: { display: false } },
-                            scales: { y: { beginAtZero: false } }
-                        }
-                    });
+                    document.getElementById('current-cals').textContent = total.cal;
+
+                    // Metas sugeridas (macros)
+                    const targetPro = 150; // g
+                    const targetCarb = 200; // g
+                    const targetFat = 70; // g
+
+                    const pctCal = Math.min((total.cal / targetCals) * 100, 100);
+                    const pctPro = Math.min((total.pro / targetPro) * 100, 100);
+                    const pctCarb = Math.min((total.carb / targetCarb) * 100, 100);
+                    const pctFat = Math.min((total.fat / targetFat) * 100, 100);
+
+                    document.getElementById('bar-protein').style.width = `${pctPro}%`;
+                    document.getElementById('bar-carbs').style.width = `${pctCarb}%`;
+                    document.getElementById('bar-fat').style.width = `${pctFat}%`;
+
+                    if (total.cal > targetCals) document.getElementById('current-cals').style.color = '#DC2626';
                 }
             }
+            const { data: history } = await supabase.from('weight_history')
+                .select('*').eq('user_id', userId).order('measured_at', { ascending: true });
 
-            // 3. Salvar Novo Peso
-            document.getElementById('save-weight').onclick = async () => {
-                const w = parseFloat(document.getElementById('weight-now').value);
-                if (!w) return alert('Insira um peso válido');
+            if (history && history.length > 0) {
+                document.getElementById('weight-start').textContent = `${history[0].weight}kg`;
+                const labels = history.map(h => new Date(h.measured_at).toLocaleDateString('pt-BR'));
+                const weights = history.map(h => h.weight);
 
-                const { error } = await supabase.from('weight_history').insert({ user_id: userId, weight: w });
-                if (!error) {
-                    await supabase.from('profiles').update({ current_weight: w }).eq('id', userId);
-                    alert('Peso registrado com sucesso!');
-                    refreshWeight();
-                }
-            };
+                if (chart) chart.destroy();
+                const ctx = document.getElementById('weightChart').getContext('2d');
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Peso (kg)',
+                            data: weights,
+                            borderColor: '#D4FF00',
+                            backgroundColor: 'rgba(212, 255, 0, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            pointBackgroundColor: '#000',
+                            borderWidth: 3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: false } }
+                    }
+                });
+            }
+        }
 
-            // Logout
-            document.getElementById('logout-btn').onclick = async () => {
-                await supabase.auth.signOut();
-                window.location.href = 'index.html';
-            };
+        // 3. Salvar Novo Peso
+        document.getElementById('save-weight').onclick = async () => {
+            const w = parseFloat(document.getElementById('weight-now').value);
+            if (!w) return alert('Insira um peso válido');
 
-            refreshWeight();
+            const { error } = await supabase.from('weight_history').insert({ user_id: userId, weight: w });
+            if (!error) {
+                await supabase.from('profiles').update({ current_weight: w }).eq('id', userId);
+                alert('Peso registrado com sucesso!');
+                refreshWeight();
+            }
+        };
+
+        // Logout
+        document.getElementById('logout-btn').onclick = async () => {
+            await supabase.auth.signOut();
+            window.location.href = 'index.html';
+        };
+
+        refreshWeight();
         }
 
         initDashboard();

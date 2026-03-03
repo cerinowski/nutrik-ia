@@ -67,7 +67,7 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
         let contents = [
             {
                 role: "user",
-                parts: [{ text: "Você é o Nutrik.IA, o parceiro de saúde e amigo de jornada do usuário. Seja acolhedor, empático e muito motivador. Ao analisar alimentos ou planos, mantenha a precisão técnica (ALIMENTOS, GRAMAS ESTIMADAS, MACRONUTRIENTES e CALORIAS) usando <strong> nos números, mas fale como um mentor amigável que realmente se importa. Dê sempre um incentivo positivo no final." }]
+                parts: [{ text: "Você é o Nutrik.IA, o parceiro de saúde e amigo de jornada do usuário. Seja acolhedor, empático e muito motivador. Ao analisar alimentos ou planos, mantenha a precisão técnica (ALIMENTOS, GRAMAS ESTIMADAS, MACRONUTRIENTES e CALORIAS) usando <strong> nos números. Fale como um mentor amigável. IMPORTANTE: Se houver análise de alimentos, você DEVE terminar sua resposta com um bloco JSON no formato: ```json {\"calories\": 0, \"protein\": 0, \"carbs\": 0, \"fat\": 0, \"description\": \"nome do prato\"} ```" }]
             },
             {
                 role: "model",
@@ -162,7 +162,34 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
             reply = parts.map(p => p.text || "").join("\n");
         }
 
-        res.json({ reply });
+        // ✅ Persistência de Dados (Se houver macros na resposta)
+        const jsonMatch = reply.match(/```json\n([\s\S]*?)\n```/);
+        let nutritionData = null;
+        if (jsonMatch && jsonMatch[1]) {
+            try {
+                nutritionData = JSON.parse(jsonMatch[1]);
+                // Remover o bloco JSON da resposta exibida para o usuário
+                reply = reply.replace(jsonMatch[0], "").trim();
+
+                // Salvar no banco (Supabase) se tiver userId no header/body
+                const userId = req.body.userId || req.headers['x-user-id'];
+                if (userId && nutritionData.calories > 0) {
+                    await supabaseAdmin.from('meals').insert({
+                        user_id: userId,
+                        description: nutritionData.description || "Refeição analisada",
+                        calories: nutritionData.calories,
+                        protein: nutritionData.protein,
+                        carbs: nutritionData.carbs,
+                        fat: nutritionData.fat,
+                        image_url: imageBase64 ? "base64_stored" : null // Em produção, usaríamos Storage
+                    });
+                }
+            } catch (e) {
+                console.error("Erro ao processar JSON de nutrição:", e);
+            }
+        }
+
+        res.json({ reply, nutrition: nutritionData });
 
     } catch (error) {
         console.error('Critical Chat Error:', error);
