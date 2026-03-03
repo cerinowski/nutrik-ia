@@ -194,10 +194,16 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
                 console.log(`[MEAL LOG] Usuário: ${userId}, Dados Extraídos:`, nutritionData);
 
                 if (userId && (nutritionData.calories || nutritionData.calorias || nutritionData.kcal) > 0) {
-                    const calories = Math.round(parseFloat(nutritionData.calories || nutritionData.calorias || nutritionData.kcal || 0));
-                    const protein = Math.round(parseFloat(nutritionData.protein || nutritionData.proteina || 0));
-                    const carbs = Math.round(parseFloat(nutritionData.carbs || nutritionData.carboidratos || 0));
-                    const fat = Math.round(parseFloat(nutritionData.fat || nutritionData.gordura || 0));
+                    const safeRound = (val) => {
+                        if (!val) return 0;
+                        const num = parseFloat(String(val).replace(',', '.')); // Lida com vírgulas BR
+                        return isNaN(num) ? 0 : Math.round(num);
+                    };
+
+                    const calories = safeRound(nutritionData.calories || nutritionData.calorias || nutritionData.kcal);
+                    const protein = safeRound(nutritionData.protein || nutritionData.proteina);
+                    const carbs = safeRound(nutritionData.carbs || nutritionData.carboidratos);
+                    const fat = safeRound(nutritionData.fat || nutritionData.gordura);
                     const finalDesc = nutritionData.description || nutritionData.descricao || message || "Refeição analisada";
 
                     console.log(`[DATABASE] Iniciando inserção ADMIN (Ignora RLS) para ${userId}: ${finalDesc} (${calories}kcal)`);

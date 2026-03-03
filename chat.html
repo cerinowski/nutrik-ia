@@ -377,9 +377,11 @@
                 const loadingEl = document.getElementById(loadingId);
                 if (loadingEl) loadingEl.remove();
 
-                let errorMsg = "Desculpe, ocorreu um erro ao conectar com a IA. Verifique o console interno (F12).";
+                let errorMsg = "Desculpe, ocorreu um erro ao conectar com a IA. Servidor ou timeout da Vercel falhou.";
                 if (error.message.includes('429') || error.message.includes('quota') || error.message.includes('RESOURCE_EXHAUSTED')) {
                     errorMsg = "Opa! O cérebro da IA está respirando no momento (limite de uso grátis do Google atingido). Por favor, espere uns 20 segundinhos e tente novamente! ⏳";
+                } else {
+                    errorMsg += `<br><br><small style="color:red;">Detalhe técnico: ${error.message}</small>`;
                 }
 
                 appendMessage(errorMsg, false);
