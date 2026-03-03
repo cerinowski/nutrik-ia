@@ -215,6 +215,7 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
                     if (insertError) {
                         console.error("[DATABASE ERROR] Falha ao inserir refeição admin:", insertError);
                         nutritionData._admin_saved = false;
+                        nutritionData._admin_error = insertError;
                     } else {
                         console.log("[DATABASE SUCCESS] Refeição inserida com ADMIN ID:", insertData?.[0]?.id);
                         nutritionData._admin_saved = true;

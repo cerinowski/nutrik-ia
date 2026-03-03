@@ -352,8 +352,10 @@
                         document.body.appendChild(toast);
                         setTimeout(() => toast.remove(), 4000);
                     } else {
-                        console.error("⛔ Servidor não conseguiu salvar.");
-                        alert("⚠️ Não foi possível salvar os macros na base de dados (Esquema da tabela diferente). Os números do resumo não irão mudar.");
+                        console.error("⛔ Servidor não conseguiu salvar.", data.nutrition._admin_error);
+                        const dbError = data.nutrition._admin_error;
+                        const errorMsg = dbError ? (dbError.message || JSON.stringify(dbError)) : "Erro desconhecido";
+                        alert(`⚠️ ERRO EXATO DO BANCO DE DADOS:\n\n${errorMsg}\n\nPor favor, me mostre este alerta para eu saber qual coluna está quebrando no Supabase.`);
                     }
                 } else if (imageToSend) {
                     console.warn("Nenhum dado nutricional foi identificado pela IA nesta resposta.");
