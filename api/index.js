@@ -113,8 +113,8 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
             generationConfig: { maxOutputTokens: 8192, temperature: 0.2 }
         };
 
-        // ✅ TENTATIVA DIRETA DE ALTA PERFORMANCE (Revertido para "Como era antes")
-        const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+        // ✅ TENTATIVA DIRETA DE ALTA PERFORMANCE (2.5 Flash Exclusivo)
+        const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
         const cleanModel = model.replace('models/', '');
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent`;
 
