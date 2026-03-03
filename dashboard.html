@@ -123,23 +123,18 @@
                 <div class="macro-progress" id="bar-fat" style="width: 0%; background: #F44336;"></div>
             </div>
 
-            <!-- Calorias Unificadas -->
+            <!-- Calorias Unificadas (Limpa e Direta) -->
             <div
-                style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; background: #ccff0010; padding: 15px; border-radius: 12px; border: 1px dashed var(--primary);">
-                <div style="text-align: left;">
-                    <div class="stat-label"
-                        style="color: #000; opacity: 0.6; font-size: 11px; text-transform: uppercase;">Restante</div>
-                    <div id="remaining-cals" style="font-size: 24px; font-weight: 900; color: #000;">---</div>
-                </div>
-                <div style="text-align: right;">
-                    <div class="stat-label"
-                        style="color: #000; opacity: 0.6; font-size: 11px; text-transform: uppercase;">Consumido</div>
-                    <div style="font-size: 18px; font-weight: 800; color: #000;">
-                        <span id="current-cals">0</span><span style="font-size: 12px; opacity: 0.5; margin-left: 2px;">/
-                            <span id="target-cals">---</span> kcal</span>
-                    </div>
+                style="margin-top: 20px; background: #ccff0010; padding: 20px; border-radius: 12px; border: 1.5px dashed var(--primary); text-align: center;">
+                <div class="stat-label"
+                    style="color: #000; opacity: 0.6; font-size: 12px; text-transform: uppercase; margin-bottom: 4px;">
+                    Você ainda pode consumir</div>
+                <div id="remaining-cals" style="font-size: 32px; font-weight: 900; color: #000;">---</div>
+                <div style="font-size: 14px; opacity: 0.5; margin-top: 4px;">
+                    Meta do dia: <span id="target-cals">---</span> kcal
                 </div>
             </div>
+
 
             <!-- Lista de Refeições -->
             <div id="meals-list-container"
