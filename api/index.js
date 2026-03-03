@@ -126,6 +126,7 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
 
         for (const model of candidateModels) {
             const cleanModel = model.replace('models/', '');
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent`;
             let modelSuccess = false;
             for (let attempt = 1; attempt <= 3; attempt++) {
                 try {
