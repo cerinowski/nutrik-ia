@@ -340,41 +340,20 @@
                         .then(({ error }) => { if (error) console.error("History sync err:", error) });
                 }
 
-                // 🚀 NOVO E DEFINITIVO: O FRONTEND (Que tem permissão RLS) SALVA A REFEIÇÃO!
+                // 🚀 NOVO E DEFINITIVO: O Servidor ADMIN agora faz o ByPass. Frontend só avisa.
                 if (data.nutrition && (data.nutrition.calories || data.nutrition.calorias || data.nutrition.kcal) > 0) {
-                    try {
+                    if (data.nutrition._admin_saved) {
                         const cal = parseFloat(data.nutrition.calories || data.nutrition.calorias || data.nutrition.kcal || 0);
-                        const pro = parseFloat(data.nutrition.protein || data.nutrition.proteina || 0);
-                        const car = parseFloat(data.nutrition.carbs || data.nutrition.carboidratos || 0);
-                        const fat = parseFloat(data.nutrition.fat || data.nutrition.gordura || 0);
-                        const desc = data.nutrition.description || data.nutrition.descricao || text || "Refeição";
-
-                        console.log("🔥 Forçando salvamento da refeição pelo Frontend:", { desc, cal, pro, car, fat });
-
-                        const { error: mealErr } = await window.supabaseClient.from('meals').insert({
-                            user_id: window.currentUser.id,
-                            description: desc,
-                            calories: cal,
-                            protein: pro,
-                            carbs: car,
-                            fat: fat
-                        });
-
-                        if (mealErr) {
-                            console.error("⛔ Erro do banco de dados (RLS?):", mealErr);
-                            alert("⚠️ Identificamos os macros, mas não conseguimos salvar no Diário. Verifique seu login.");
-                        } else {
-                            console.log("✅ Refeição salva com sucesso!");
-                            // Toast discreto de sucesso
-                            const toast = document.createElement('div');
-                            toast.innerText = `🍽️ +${cal}kcal registradas no Diário de Hoje!`;
-                            toast.style.cssText = "position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#ccff00;color:#000;padding:12px 24px;border-radius:30px;font-weight:bold;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.1);";
-                            document.body.appendChild(toast);
-                            setTimeout(() => toast.remove(), 4000);
-                        }
-
-                    } catch (e) {
-                        console.error("⛔ Erro no script frontend de salvamento:", e);
+                        console.log("✅ Refeição salva com sucesso pela Vercel Admin!");
+                        // Toast discreto de sucesso
+                        const toast = document.createElement('div');
+                        toast.innerText = `🍽️ +${cal}kcal registradas no Diário de Hoje!`;
+                        toast.style.cssText = "position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#ccff00;color:#000;padding:12px 24px;border-radius:30px;font-weight:bold;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.1);";
+                        document.body.appendChild(toast);
+                        setTimeout(() => toast.remove(), 4000);
+                    } else {
+                        console.error("⛔ Servidor não conseguiu salvar.");
+                        alert("⚠️ Não foi possível salvar os macros na base de dados (Esquema da tabela diferente). Os números do resumo não irão mudar.");
                     }
                 } else if (imageToSend) {
                     console.warn("Nenhum dado nutricional foi identificado pela IA nesta resposta.");

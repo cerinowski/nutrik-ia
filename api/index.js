@@ -200,7 +200,7 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
                     const fat = parseFloat(nutritionData.fat || nutritionData.gordura || 0);
                     const finalDesc = nutritionData.description || nutritionData.descricao || message || "Refeição analisada";
 
-                    console.log(`[DATABASE] Iniciando inserção para ${userId}: ${finalDesc} (${calories}kcal)`);
+                    console.log(`[DATABASE] Iniciando inserção ADMIN (Ignora RLS) para ${userId}: ${finalDesc} (${calories}kcal)`);
 
                     const { data: insertData, error: insertError } = await supabaseAdmin.from('meals').insert({
                         user_id: userId,
@@ -213,19 +213,20 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
                     }).select();
 
                     if (insertError) {
-                        console.error("[DATABASE ERROR] Falha ao inserir refeição:", insertError);
+                        console.error("[DATABASE ERROR] Falha ao inserir refeição admin:", insertError);
+                        nutritionData._admin_saved = false;
                     } else {
-                        console.log("[DATABASE SUCCESS] Refeição inserida ID:", insertData?.[0]?.id);
+                        console.log("[DATABASE SUCCESS] Refeição inserida com ADMIN ID:", insertData?.[0]?.id);
+                        nutritionData._admin_saved = true;
                     }
                 } else {
-                    console.warn("[MEAL LOG] Ignorando salvamento: userId ausente ou calorias <= 0", { userId, calories: nutritionData?.calories });
+                    console.warn("[MEAL LOG] Ignorando salvamento: userId ausente ou calorias <= 0");
                 }
 
             } catch (e) {
-                console.error("Erro ao processar JSON de nutrição:", e, "Payload:", jsonMatch[1]);
+                console.error("Erro ao processar JSON de nutrição:", e);
             }
         }
-
 
         res.json({ reply, nutrition: nutritionData });
 
