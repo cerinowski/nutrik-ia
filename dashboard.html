@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nutrik.IA - Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        @media (min-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            padding: 24px;
+            border-radius: 20px;
+            border: 1.5px solid #000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .card-full {
+            grid-column: 1 / -1;
+        }
+
+        .macro-bar {
+            height: 12px;
+            background: #f0f0f0;
+            border-radius: 6px;
+            margin: 8px 0 16px;
+            overflow: hidden;
+        }
+
+        .macro-progress {
+            height: 100%;
+            background: var(--primary);
+            transition: width 0.5s ease;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 800;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .weight-input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1.5px solid #000;
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+
+<body style="background: #F9FAFB;">
+    <div class="chat-header"
+        style="position: sticky; top: 0; z-index: 100; background: #FFF; border-bottom: 1.5px solid #000;">
+        <div class="logo-container" style="font-size: 24px;">
+            <span class="logo-text">nutrik</span>
+            <span class="logo-bubble" style="font-size: 24px; padding: 2px 8px 4px 6px;">.ia</span>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <a href="chat.html" class="upgrade-btn" style="text-decoration: none;">Ir para Chat 🤖</a>
+            <i data-lucide="log-out" id="logout-btn"
+                style="width: 20px; height: 20px; cursor: pointer; color: #DC2626;"></i>
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+        <!-- Boas Vindas -->
+        <div class="card card-full" style="background: #000; color: #fff;">
+            <h2 id="user-greeting" style="font-family: 'Outfit', sans-serif; font-size: 28px;">Olá, Campeão! 🚀</h2>
+            <p style="opacity: 0.8;">Vamos ver como está seu progresso hoje.</p>
+        </div>
+
+        <!-- Macros do Dia -->
+        <div class="card">
+            <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="flame" style="color: #FF4500;"></i> Resumo de Hoje
+            </h3>
+
+            <div class="stat-label">Proteínas</div>
+            <div class="macro-bar">
+                <div class="macro-progress" id="bar-protein" style="width: 0%; background: #4CAF50;"></div>
+            </div>
+
+            <div class="stat-label">Carboidratos</div>
+            <div class="macro-bar">
+                <div class="macro-progress" id="bar-carbs" style="width: 0%; background: #FF9800;"></div>
+            </div>
+
+            <div class="stat-label">Gorduras</div>
+            <div class="macro-bar">
+                <div class="macro-progress" id="bar-fat" style="width: 0%; background: #F44336;"></div>
+            </div>
+
+            <div style="text-align: right; font-weight: 800; font-size: 18px; margin-top: 10px;">
+                <span id="current-cals">0</span> / <span id="target-cals">2000</span> kcal
+            </div>
+        </div>
+
+        <!-- Peso Atual -->
+        <div class="card">
+            <h3 style="margin-bottom: 12px;">📊 Registro de Peso</h3>
+            <p style="font-size: 14px; color: #666; margin-bottom: 16px;">Mantenha seu peso atualizado para o gráfico.
+            </p>
+            <input type="number" id="weight-now" class="weight-input" placeholder="Peso atual (kg)" step="0.1">
+            <button class="btn-primary" id="save-weight" style="width: 100%;">Salvar Registro ⚖️</button>
+            <div style="margin-top: 20px; display: flex; justify-content: space-between;">
+                <div>
+                    <div class="stat-label">Inicial</div>
+                    <div class="stat-value" id="weight-start">--</div>
+                </div>
+                <div style="text-align: right;">
+                    <div class="stat-label">Meta</div>
+                    <div class="stat-value" id="weight-target" style="color: #4CAF50;">--</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráfico de Evolução -->
+        <div class="card card-full">
+            <h3 style="margin-bottom: 20px;">📈 Sua Evolução</h3>
+            <canvas id="weightChart" style="width: 100%; height: 300px;"></canvas>
+        </div>
+    </div>
+
+    <script type="module" src="config.js"></script>
+    <script>
+        let chart;
+        async function initDashboard() {
+            if (!window.supabaseClient) {
+                setTimeout(initDashboard, 50);
+                return;
+            }
+            lucide.createIcons();
+            const supabase = window.supabaseClient;
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) { window.location.href = 'index.html'; return; }
+
+            const userId = session.user.id;
+
+            // 1. Carregar Perfil
+            const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
+            if (profile) {
+                document.getElementById('user-greeting').textContent = `Olá, ${profile.full_name.split(' ')[0]}! 🚀`;
+                document.getElementById('weight-target').textContent = `${profile.target_weight || '--'}kg`;
+                // Cálculo básico de TDEE (Simplificado para o MVP)
+                const targetCals = profile.gender === 'male' ? 2500 : 2000;
+                document.getElementById('target-cals').textContent = targetCals;
+            }
+
+            // 2. Carregar Histórico de Peso e Gráfico
+            async function refreshWeight() {
+                const { data: history } = await supabase.from('weight_history')
+                    .select('*').eq('user_id', userId).order('measured_at', { ascending: true });
+
+                if (history && history.length > 0) {
+                    document.getElementById('weight-start').textContent = `${history[0].weight}kg`;
+                    const labels = history.map(h => new Date(h.measured_at).toLocaleDateString('pt-BR'));
+                    const weights = history.map(h => h.weight);
+
+                    if (chart) chart.destroy();
+                    const ctx = document.getElementById('weightChart').getContext('2d');
+                    chart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Peso (kg)',
+                                data: weights,
+                                borderColor: '#D4FF00',
+                                backgroundColor: 'rgba(212, 255, 0, 0.1)',
+                                tension: 0.4,
+                                fill: true,
+                                pointBackgroundColor: '#000',
+                                borderWidth: 3
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: { legend: { display: false } },
+                            scales: { y: { beginAtZero: false } }
+                        }
+                    });
+                }
+            }
+
+            // 3. Salvar Novo Peso
+            document.getElementById('save-weight').onclick = async () => {
+                const w = parseFloat(document.getElementById('weight-now').value);
+                if (!w) return alert('Insira um peso válido');
+
+                const { error } = await supabase.from('weight_history').insert({ user_id: userId, weight: w });
+                if (!error) {
+                    await supabase.from('profiles').update({ current_weight: w }).eq('id', userId);
+                    alert('Peso registrado com sucesso!');
+                    refreshWeight();
+                }
+            };
+
+            // Logout
+            document.getElementById('logout-btn').onclick = async () => {
+                await supabase.auth.signOut();
+                window.location.href = 'index.html';
+            };
+
+            refreshWeight();
+        }
+
+        initDashboard();
+    </script>
+</body>
+
+</html>

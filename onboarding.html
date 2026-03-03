@@ -162,7 +162,7 @@
             const { data: { session } } = await supabase.auth.getSession();
 
             if (!session) {
-                window.location.href = 'index.html';
+                window.location.href = 'dashboard.html';
                 return;
             }
 
@@ -196,7 +196,7 @@
                     });
                     if (wError) throw wError;
 
-                    window.location.href = 'chat.html'; // Próximo passo: Dashboard
+                    window.location.href = 'dashboard.html'; // Próximo passo: Dashboard
                 } catch (err) {
                     alert('Erro ao salvar: ' + err.message);
                     btn.textContent = 'Finalizar Perfil ⚡';
