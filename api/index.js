@@ -231,13 +231,13 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
         // ✅ MEGA CASCATA ANTI-COTA PURIFICADA (Modelos extraídos Vivos via ListModels da API Key atual)
         // Ocultado do usuário: A Google extirpou todos os modelos legados "1.5" das novas chaves.
         // Array contendo EXCLUSIVAMENTE modelos que a Chave do Usuário atual enxerga.
+        // Array contendo EXCLUSIVAMENTE modelos rápidos do Free Tier da Google (limitados a ~15 RPM).
+        // Evitamos usar os modelos 'pro' pois a cota deles no Free Tier é de apenas 2 RPM e bloqueia imediatamente.
         const candidateModels = [
-            "gemini-2.5-flash",
-            "gemini-2.5-flash-lite", // Fallback Econômico Super Leve 2.5
+            "gemini-2.5-flash", // Pode não existir ainda, mas fica pro futuro
             "gemini-2.0-flash",
-            "gemini-2.0-flash-lite", // Fallback Econômico Super Leve 2.0
-            "gemini-flash-latest",
-            "gemini-pro-latest"
+            "gemini-1.5-flash",
+            "gemini-1.5-flash-8b"
         ].filter(Boolean);
 
         let lastErr = null;
