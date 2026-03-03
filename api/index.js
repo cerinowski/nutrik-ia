@@ -113,50 +113,25 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
             generationConfig: { maxOutputTokens: 8192, temperature: 0.2 }
         };
 
-        // ✅ TENTATIVA EM CASCATA FAST-FAIL (Sincronização Total e Sem Dormir)
-        const candidateModels = [
-            process.env.GEMINI_MODEL,
-            "gemini-2.5-flash",
-            "gemini-2.0-flash",
-            "gemini-flash-latest"
-        ].filter(Boolean);
+        // ✅ TENTATIVA DIRETA DE ALTA PERFORMANCE (Revertido para "Como era antes")
+        const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+        const cleanModel = model.replace('models/', '');
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent`;
 
-        let lastErr = null;
-        let responseData = null;
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "x-goog-api-key": GEMINI_API_KEY,
+            },
+            body: JSON.stringify(payload),
+        });
 
-        for (const model of candidateModels) {
-            const cleanModel = model.replace('models/', '');
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent`;
+        const responseData = await response.json();
 
-            try {
-                const response = await fetch(url, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "x-goog-api-key": GEMINI_API_KEY,
-                    },
-                    body: JSON.stringify(payload),
-                });
-
-                responseData = await response.json();
-
-                if (response.ok) {
-                    lastErr = null;
-                    break; // Sucesso, aborta a descida da cascata
-                }
-
-                lastErr = responseData?.error?.message || `Falha com modelo ${cleanModel}`;
-                console.warn(`[GEMINI CASCADE] O modelo ${cleanModel} falhou:`, lastErr);
-
-            } catch (fetchErr) {
-                lastErr = fetchErr.message;
-                console.warn(`[GEMINI CASCADE] Fetch falhou em ${cleanModel}:`, lastErr);
-            }
-        } // Fim da cascata Single-Pass sem Sleeps perigosos
-
-        if (lastErr) {
-            console.error("Gemini Final Error:", lastErr, responseData);
-            throw new Error(lastErr);
+        if (!response.ok) {
+            console.error("Gemini Direct Error:", responseData);
+            throw new Error(responseData?.error?.message || "Erro na API Gemini");
         }
 
         let reply = "Não consegui processar a análise.";
