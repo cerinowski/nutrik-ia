@@ -113,25 +113,53 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
             generationConfig: { maxOutputTokens: 8192, temperature: 0.2 }
         };
 
-        // ✅ TENTATIVA DIRETA DE ALTA PERFORMANCE (2.5 Flash Exclusivo)
-        const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-        const cleanModel = model.replace('models/', '');
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent`;
+        // ✅ TENTATIVA EM CASCATA RÁPIDA (Bypass Limite Grátis Instantâneo)
+        const candidateModels = [
+            process.env.GEMINI_MODEL,
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+            "gemini-flash-latest"
+        ].filter(Boolean);
 
-        const response = await fetch(url, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "x-goog-api-key": GEMINI_API_KEY,
-            },
-            body: JSON.stringify(payload),
-        });
+        let lastErr = null;
+        let responseData = null;
+        let response = null;
 
-        const responseData = await response.json();
+        for (const model of candidateModels) {
+            const cleanModel = model.replace('models/', '');
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent`;
 
-        if (!response.ok) {
-            console.error("Gemini Direct Error:", responseData);
-            throw new Error(responseData?.error?.message || "Erro na API Gemini");
+            try {
+                response = await fetch(url, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-goog-api-key": GEMINI_API_KEY,
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                responseData = await response.json();
+
+                if (response.ok) {
+                    lastErr = null;
+                    break; // Sucesso com esse modelo, para aqui e segue em frente
+                }
+
+                lastErr = responseData?.error?.message || `Erro no ${cleanModel} (${response.status})`;
+                console.warn(`[CASCATA] Modelo ${cleanModel} bloqueado ou falhou. Tentando o próximo...`, lastErr);
+
+                // Se não deu OK (limite de taxa, erro do server, etc), o loop naturalmente segue pro próximo modelo instantly
+
+            } catch (err) {
+                lastErr = err.message;
+                console.warn(`[CASCATA] Problema de rede no ${cleanModel}:`, lastErr);
+            }
+        }
+
+        if (lastErr) {
+            console.error("Gemini Cascade Failed Integrally:", lastErr, responseData);
+            throw new Error(lastErr);
         }
 
         let reply = "Não consegui processar a análise.";
