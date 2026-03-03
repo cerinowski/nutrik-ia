@@ -300,11 +300,14 @@
                 const { data: { session } } = await supabase.auth.getSession();
                 const userId = session?.user?.id;
 
-                const response = await fetch('/api/chat', {
+                const response = await fetch(`/api/chat?t=${Date.now()}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-user-id': userId
+                        'x-user-id': userId,
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
                     },
                     body: JSON.stringify({
                         message: text,
