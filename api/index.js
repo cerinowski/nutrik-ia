@@ -66,6 +66,7 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
 
         const userId = req.body.userId || req.headers['x-user-id'];
         let liveProfile = profile || {};
+        let consumedToday = 0;
 
         // Fetch fresh profile data directly from Supabase to guarantee we have the latest weight/goal
         if (userId) {
@@ -75,10 +76,26 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
                     .select('*')
                     .eq('id', userId)
                     .single();
-                
+
                 if (dbProfile && !error) {
                     liveProfile = { ...liveProfile, ...dbProfile };
                 }
+
+                // Buscar refeições de hoje (ajustando fuso horário para Brasil UTC-3)
+                const now = new Date();
+                now.setHours(now.getHours() - 3);
+                const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+
+                const { data: mealsData, error: mealsError } = await supabaseAdmin
+                    .from('meals')
+                    .select('calories')
+                    .eq('user_id', userId)
+                    .gte('created_at', startOfDay);
+
+                if (mealsData && !mealsError) {
+                    consumedToday = mealsData.reduce((acc, m) => acc + (m.calories || 0), 0);
+                }
+
             } catch (err) {
                 console.warn("[LIVE PROFILE] Erro ao buscar perfil atualizado:", err.message);
             }
@@ -94,7 +111,7 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
             const height = parseFloat(liveProfile.height) || 0;
             const age = parseInt(liveProfile.age) || 0;
             const gender = liveProfile.gender === 'female' ? 'F' : 'M';
-            
+
             if (weight > 0 && height > 0 && age > 0) {
                 if (gender === 'M') {
                     tmb = (10 * weight) + (6.25 * height) - (5 * age) + 5;
@@ -116,17 +133,21 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
             if (liveProfile.goal === 'lose') translatedGoal = 'Emagrecer';
             if (liveProfile.goal === 'gain') translatedGoal = 'Ganhar Massa';
 
+            const remainingToday = dailyGoal > 0 ? dailyGoal - consumedToday : 0;
+
             profileContext = `\n\n[DADOS ATUALIZADOS DO PACIENTE]\n` +
-                             `- Nome: ${liveProfile.full_name || liveProfile.name || 'Não informado'}\n` +
-                             `- Peso Atual: ${liveProfile.current_weight || 'Não informado'} kg\n` +
-                             `- Meta de Peso: ${liveProfile.target_weight || 'Não informado'} kg\n` +
-                             `- Seu Objetivo é: ${translatedGoal}\n` +
-                             `- TMB (Gasto Calórico Diário Mínimo Estimado): ${tmb > 0 ? tmb + ' kcal' : 'Não calculado'}\n` +
-                             `- META DIÁRIA RECOMENDADA DE INGESTÃO (com base no objetivo): ${dailyGoal > 0 ? dailyGoal + ' kcal' : 'Não calculado'}\n` +
-                             `- Sexo: ${gender === 'M' ? 'Masculino' : 'Feminino'}\n` +
-                             `- Altura: ${liveProfile.height || 'Não informado'} cm\n` +
-                             `- Idade: ${liveProfile.age || 'Não informado'} anos\n` +
-                             `\nINSTRUÇÃO CRÍTICA PARA A IA: Ao conversar, se o usuário fizer qualquer referência a TMB, meta de calorias ou se está indo bem, USE OS VALORES ACIMA COMO BASE VERDADEIRA. Exemplo: 'Sua meta é de X calorias.' Nunca use dados não listados acima.`;
+                `- Nome: ${liveProfile.full_name || liveProfile.name || 'Não informado'}\n` +
+                `- Peso Atual: ${liveProfile.current_weight || 'Não informado'} kg\n` +
+                `- Meta de Peso: ${liveProfile.target_weight || 'Não informado'} kg\n` +
+                `- Seu Objetivo é: ${translatedGoal}\n` +
+                `- TMB (Gasto Calórico Diário Mínimo Estimado): ${tmb > 0 ? tmb + ' kcal' : 'Não calculado'}\n` +
+                `- META DIÁRIA RECOMENDADA DE INGESTÃO (com base no objetivo): ${dailyGoal > 0 ? dailyGoal + ' kcal' : 'Não calculado'}\n` +
+                `- JÁ CONSUMIDO HOJE: ${consumedToday} kcal\n` +
+                `- RESTANTE PARA HOJE: ${remainingToday} kcal\n` +
+                `- Sexo: ${gender === 'M' ? 'Masculino' : 'Feminino'}\n` +
+                `- Altura: ${liveProfile.height || 'Não informado'} cm\n` +
+                `- Idade: ${liveProfile.age || 'Não informado'} anos\n` +
+                `\nINSTRUÇÃO CRÍTICA PARA A IA: Ao conversar, se o usuário perguntar o quanto AINDA PODE COMER hoje, ou quantas calorias restam, use EXATAMENTE a linha de 'RESTANTE PARA HOJE'. Se ele perguntar o quanto consumiu até agora, responda a linha de 'JÁ CONSUMIDO HOJE'. Use OS VALORES ACIMA COMO BASE VERDADEIRA. Exemplo: 'Você consumiu X, ainda lhe restam Y calorias.' Nunca use dados não listados acima.`;
         }
 
         let contents = [];
