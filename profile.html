@@ -36,8 +36,8 @@
             align-items: center;
             gap: 8px;
             transition: all 0.2s;
-            position: relative;
             background: #fff;
+            width: 100%;
         }
 
         .btn-goal i,
@@ -45,7 +45,6 @@
             pointer-events: none;
         }
 
-        /* Impede que o clique caia no ícone ou texto */
         .btn-goal i {
             width: 20px;
             height: 20px;
@@ -120,22 +119,23 @@
                 <input type="number" id="height" required>
             </div>
             <label style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 10px;">Objetivo</label>
-            <div class="grid-2" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom: 20px;">
-                <button type="button" class="btn-goal" data-goal="lose">
+            <div id="goal-container"
+                style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+                <button type="button" class="btn-goal" data-goal="lose" onclick="setGoal('lose')">
                     <i data-lucide="trending-down"></i>
                     <span>Emagrecer</span>
                 </button>
-                <button type="button" class="btn-goal" data-goal="maintain">
+                <button type="button" class="btn-goal" data-goal="maintain" onclick="setGoal('maintain')">
                     <i data-lucide="minus"></i>
                     <span>Manter</span>
                 </button>
-                <button type="button" class="btn-goal" data-goal="gain">
+                <button type="button" class="btn-goal" data-goal="gain" onclick="setGoal('gain')">
                     <i data-lucide="trending-up"></i>
                     <span>Ganhar</span>
                 </button>
             </div>
             <button type="submit" class="btn-primary" id="save-btn"
-                style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px;">
                 <i data-lucide="check-circle" style="width: 20px; height: 20px;"></i> Salvar Alterações
             </button>
         </form>
@@ -144,6 +144,24 @@
     <script type="module" src="config.js"></script>
     <script>
         let selectedGoal = 'maintain';
+
+        // Definição global para acesso via onclick
+        window.setGoal = (goal) => {
+            selectedGoal = goal;
+            console.log('Selecionado:', selectedGoal);
+            updateGoalUI();
+        };
+
+        function updateGoalUI() {
+            const goals = document.querySelectorAll('.btn-goal');
+            goals.forEach(g => {
+                if (g.getAttribute('data-goal') === selectedGoal) {
+                    g.classList.add('active');
+                } else {
+                    g.classList.remove('active');
+                }
+            });
+        }
 
         async function initProfile() {
             if (!window.supabaseClient) { setTimeout(initProfile, 50); return; }
@@ -162,26 +180,6 @@
                 document.getElementById('height').value = profile.height || '';
                 selectedGoal = profile.goal || 'maintain';
                 updateGoalUI();
-            }
-
-            const goals = document.querySelectorAll('.btn-goal');
-            goals.forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    selectedGoal = btn.getAttribute('data-goal');
-                    console.log('Objetivo selecionado:', selectedGoal);
-                    updateGoalUI();
-                });
-            });
-
-            function updateGoalUI() {
-                goals.forEach(g => {
-                    if (g.getAttribute('data-goal') === selectedGoal) {
-                        g.classList.add('active');
-                    } else {
-                        g.classList.remove('active');
-                    }
-                });
             }
 
             document.getElementById('profile-form').onsubmit = async (e) => {
@@ -206,10 +204,11 @@
                 const { error } = await supabase.from('profiles').upsert(pData);
 
                 if (!error) {
-                    alert('Perfil atualizado com sucesso!');
+                    alert('Sua meta foi salva com sucesso! 🚀');
                     window.location.href = 'dashboard.html';
                 } else {
-                    alert('Erro ao salvar: ' + error.message);
+                    console.error('Erro Supabase:', error);
+                    alert('Erro ao salvar no banco: ' + error.message);
                     saveBtn.disabled = false;
                     saveBtn.innerHTML = '<i data-lucide="check-circle" style="width: 20px; height: 20px;"></i> Salvar Alterações';
                     lucide.createIcons();

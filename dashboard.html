@@ -96,7 +96,7 @@
         <div class="card card-full"
             style="background: #000; color: #fff; display: flex; justify-content: space-between; align-items: center;">
             <div>
-                <h2 id="user-greeting" style="font-family: 'Outfit', sans-serif; font-size: 28px;">Olá!</h2>
+                <h2 id="user-greeting" style="font-family: 'Outfit', sans-serif; font-size: 28px;">Carregando...</h2>
                 <p style="opacity: 0.8;">Seu progresso diário está aqui.</p>
             </div>
             <i data-lucide="trending-up" style="width: 40px; height: 40px; color: var(--primary);"></i>
@@ -135,7 +135,7 @@
             <input type="number" id="weight-now" class="weight-input" placeholder="Peso atual (kg)" step="0.1">
             <button class="btn-primary" id="save-weight"
                 style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                <i data-lucide="save" style="width: 18px; height: 18px;"></i> Salvar Registro
+                <i data-lucide="save" style="width: 18px; height: 18px;"></i> Salvar Peso
             </button>
             <div style="margin-top: 20px; display: flex; justify-content: space-between;">
                 <div>
@@ -164,7 +164,7 @@
 
         async function refreshDailyMacros(supabase, userId, targetCals) {
             const today = new Date().toISOString().split('T')[0];
-            const { data: meals } = await supabase.from('meals')
+            const { data: meals, error } = await supabase.from('meals')
                 .select('*')
                 .eq('user_id', userId)
                 .gte('created_at', today);
@@ -179,9 +179,10 @@
 
                 document.getElementById('current-cals').textContent = total.cal;
 
-                const targetPro = 150;
-                const targetCarb = 200;
-                const targetFat = 70;
+                // Estimativa de Macros baseada no Target Cals (Pro 30%, Carb 40%, Fat 30%)
+                const targetPro = (targetCals * 0.3) / 4;
+                const targetCarb = (targetCals * 0.4) / 4;
+                const targetFat = (targetCals * 0.3) / 9;
 
                 const pctPro = Math.min((total.pro / targetPro) * 100, 100);
                 const pctCarb = Math.min((total.carb / targetCarb) * 100, 100);
@@ -191,8 +192,10 @@
                 document.getElementById('bar-carbs').style.width = `${pctCarb}%`;
                 document.getElementById('bar-fat').style.width = `${pctFat}%`;
 
-                if (total.cal > targetCals) document.getElementById('current-cals').style.color = '#DC2626';
-                else document.getElementById('current-cals').style.color = '#000';
+                const curCalsElem = document.getElementById('current-cals');
+                if (total.cal > targetCals + 100) curCalsElem.style.color = '#DC2626';
+                else if (total.cal > targetCals - 100) curCalsElem.style.color = '#10B981';
+                else curCalsElem.style.color = '#000';
             }
         }
 
@@ -247,18 +250,21 @@
                 if (!p.weight || !p.height || !p.age) return 2000;
                 let bmr = (10 * p.weight) + (6.25 * p.height) - (5 * p.age);
                 bmr = p.gender === 'male' ? bmr + 5 : bmr - 161;
-                let tdee = bmr * 1.375;
+                let tdee = bmr * 1.375; // Fator de atividade leve/moderado
                 if (p.goal === 'lose') return Math.round(tdee - 500);
                 if (p.goal === 'gain') return Math.round(tdee + 400);
                 return Math.round(tdee);
             }
 
             const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
+            console.log('Perfil carregado:', profile);
+
             let targetCals = 2000;
             if (profile) {
                 document.getElementById('user-greeting').textContent = `Olá, ${profile.full_name?.split(' ')[0] || 'Campeão'}!`;
-                // CORREÇÃO: Forçar exibição da meta de peso
-                const tWeight = profile.target_weight;
+
+                // Mostrar a meta de peso salvada
+                const tWeight = parseFloat(profile.target_weight);
                 document.getElementById('weight-target').textContent = tWeight ? `${tWeight}kg` : '--kg';
 
                 targetCals = calculateTDEE({
@@ -282,12 +288,19 @@
                 const { error } = await supabase.from('weight_history').insert({ user_id: userId, weight: w });
                 if (!error) {
                     await supabase.from('profiles').update({ current_weight: w }).eq('id', userId);
-                    alert('Peso registrado com sucesso!');
+                    alert('Peso registrado! Meta de calorias atualizada.');
                     wInput.value = '';
-                    const newTdee = calculateTDEE({ weight: w, height: profile.height, age: profile.age, gender: profile.gender, goal: profile.goal });
-                    document.getElementById('target-cals').textContent = newTdee;
+                    // Recalcular com novo peso
+                    const updatedTdee = calculateTDEE({
+                        weight: w,
+                        height: profile.height,
+                        age: profile.age,
+                        gender: profile.gender,
+                        goal: profile.goal
+                    });
+                    document.getElementById('target-cals').textContent = updatedTdee;
                     await refreshWeight(supabase, userId);
-                    await refreshDailyMacros(supabase, userId, newTdee);
+                    await refreshDailyMacros(supabase, userId, updatedTdee);
                 }
             };
 
