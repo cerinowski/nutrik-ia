@@ -113,11 +113,10 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
             generationConfig: { maxOutputTokens: 8192, temperature: 0.2 }
         };
 
-        // ✅ TENTATIVA EM CASCATA (Sincronizada e limpa de modelos obsoletos)
+        // ✅ TENTATIVA EM CASCATA (Travado no 2.0 Flash)
         const candidateModels = [
             process.env.GEMINI_MODEL,
-            "gemini-2.0-flash",
-            "gemini-1.5-flash"
+            "gemini-2.0-flash"
         ].filter(Boolean);
 
         let lastErr = null;
