@@ -235,11 +235,9 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
         // Evitamos usar os modelos 'pro' pois a cota deles no Free Tier é de apenas 2 RPM e bloqueia imediatamente.
         const candidateModels = [
             "gemini-2.5-flash",
-            "gemini-2.5-flash-lite", // Fallback Econômico Super Leve 2.5
             "gemini-2.0-flash",
-            "gemini-2.0-flash-lite", // Fallback Econômico Super Leve 2.0
-            "gemini-flash-latest",
-            "gemini-pro-latest"
+            "gemini-2.0-flash-lite",
+            "gemini-flash"
         ].filter(Boolean);
 
         let lastErr = null;
