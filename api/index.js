@@ -164,11 +164,24 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
         }
 
         // ✅ Persistência de Dados (Robusta e Flexível)
-        const jsonMatch = reply.match(/```json\s*([\s\S]*?)\s*```/i);
+        let rawJson = null;
+        const jsonBlockMatch = reply.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+
+        if (jsonBlockMatch && jsonBlockMatch[1]) {
+            rawJson = jsonBlockMatch[1].trim();
+            reply = reply.replace(jsonBlockMatch[0], "").trim(); // Remove da mensagem mostrada
+        } else {
+            // Tenta encontrar um objeto JSON nu, caso a IA não use markdown
+            const fallbackMatch = reply.match(/\{[\s\S]+\}/);
+            if (fallbackMatch) {
+                rawJson = fallbackMatch[0].trim();
+                reply = reply.replace(fallbackMatch[0], "").trim();
+            }
+        }
+
         let nutritionData = null;
-        if (jsonMatch && jsonMatch[1]) {
+        if (rawJson) {
             try {
-                const rawJson = jsonMatch[1].trim();
                 const parsed = JSON.parse(rawJson);
 
                 // Normalizar chaves para minúsculo e suportar PT/EN
@@ -176,9 +189,6 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
                 for (let key in parsed) {
                     nutritionData[key.toLowerCase()] = parsed[key];
                 }
-
-                // Limpar a resposta exibida para o usuário (remover o código JSON)
-                reply = reply.replace(jsonMatch[0], "").trim();
 
                 const userId = req.body.userId || req.headers['x-user-id'];
                 console.log(`[MEAL LOG] Usuário: ${userId}, Dados Extraídos:`, nutritionData);

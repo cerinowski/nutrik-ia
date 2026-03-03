@@ -360,12 +360,24 @@
                             fat: fat
                         });
 
-                        if (mealErr) console.error("⛔ Erro do banco de dados (RLS?):", mealErr);
-                        else console.log("✅ Refeição salva com sucesso!");
+                        if (mealErr) {
+                            console.error("⛔ Erro do banco de dados (RLS?):", mealErr);
+                            alert("⚠️ Identificamos os macros, mas não conseguimos salvar no Diário. Verifique seu login.");
+                        } else {
+                            console.log("✅ Refeição salva com sucesso!");
+                            // Toast discreto de sucesso
+                            const toast = document.createElement('div');
+                            toast.innerText = `🍽️ +${cal}kcal registradas no Diário de Hoje!`;
+                            toast.style.cssText = "position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#ccff00;color:#000;padding:12px 24px;border-radius:30px;font-weight:bold;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.1);";
+                            document.body.appendChild(toast);
+                            setTimeout(() => toast.remove(), 4000);
+                        }
 
                     } catch (e) {
                         console.error("⛔ Erro no script frontend de salvamento:", e);
                     }
+                } else if (imageToSend) {
+                    console.warn("Nenhum dado nutricional foi identificado pela IA nesta resposta.");
                 }
 
 
