@@ -204,9 +204,6 @@
                     fat: acc.fat + (m.fat || 0)
                 }), { cal: 0, pro: 0, carb: 0, fat: 0 });
 
-                // Atualizar Calorias
-                document.getElementById('current-cals').textContent = total.cal;
-
                 const remaining = targetCals - total.cal;
                 const remainingElem = document.getElementById('remaining-cals');
                 remainingElem.textContent = `${remaining} kcal`;
@@ -240,13 +237,9 @@
                 document.getElementById('bar-protein').style.width = `${pctPro}%`;
                 document.getElementById('bar-carbs').style.width = `${pctCarb}%`;
                 document.getElementById('bar-fat').style.width = `${pctFat}%`;
-
-                const curCalsElem = document.getElementById('current-cals');
-                if (total.cal > targetCals + 100) curCalsElem.style.color = '#DC2626';
-                else if (total.cal > targetCals - 100) curCalsElem.style.color = '#10B981';
-                else curCalsElem.style.color = '#000';
             }
         }
+
 
         async function refreshWeight(supabase, userId) {
             const { data: history } = await supabase.from('weight_history')
