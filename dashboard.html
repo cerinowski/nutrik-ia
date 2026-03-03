@@ -91,22 +91,23 @@
 </head>
 
 <body style="background: #F9FAFB;">
-    <div class="chat-header"
-        style="position: sticky; top: 0; z-index: 100; background: #FFF; border-bottom: 1.5px solid #000;">
-        <div class="logo-container" style="font-size: 24px;">
+    <header class="app-header">
+        <div class="logo-container compact">
             <span class="logo-text">nutrik</span>
-            <span class="logo-bubble" style="font-size: 24px; padding: 2px 8px 4px 6px;">.ia</span>
+            <span class="logo-bubble">.ia</span>
         </div>
-        <div class="header-actions">
-            <a href="profile.html" title="Meu Perfil">
+        <div class="nav-actions">
+            <a href="profile.html" class="nav-icon-link" title="Meu Perfil">
                 <i data-lucide="user" style="width: 20px; height: 20px;"></i>
             </a>
-            <a href="chat.html" class="upgrade-btn">Ir para Chat 🤖</a>
-            <button id="logout-btn" title="Sair">
-                <i data-lucide="log-out" style="width: 20px; height: 20px; color: #DC2626;"></i>
+            <a href="chat.html" class="btn-chat-nav">
+                Chat 🤖
+            </a>
+            <button id="logout-btn" class="btn-logout-nav" title="Sair">
+                <i data-lucide="log-out" style="width: 20px; height: 20px;"></i>
             </button>
         </div>
-    </div>
+    </header>
 
     <div class="dashboard-grid">
         <div class="card card-full" style="background: #000; color: #fff;">
