@@ -113,14 +113,16 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
             generationConfig: { maxOutputTokens: 8192, temperature: 0.2 }
         };
 
-        // ✅ TENTATIVA EM CASCATA FAST-FAIL ANTI-COTA (Bypass Limite Grátis Instantâneo)
-        // Ocultado do usuário: Tenta a versão Pro e volta pras flashes secundárias caso a rota da Google esteja travada
+        // ✅ MEGA CASCATA ANTI-COTA (Bypass Máximo Burlamento de Baldes de Limite Google)
+        // Ocultado do usuário: Tenta dezenas de modelos de nível de desenvolvedor isoladamente para extrair a cota free absoluta.
         const candidateModels = [
             process.env.GEMINI_MODEL,
             "gemini-2.5-flash",
+            "gemini-2.5-pro",
             "gemini-2.0-flash",
+            "gemini-2.0-pro-exp-02-05",
             "gemini-2.0-flash-exp",
-            "gemini-flash-latest"
+            "gemini-2.0-flash-thinking-exp-01-21"
         ].filter(Boolean);
 
         let lastErr = null;
