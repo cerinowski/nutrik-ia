@@ -113,10 +113,10 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
             generationConfig: { maxOutputTokens: 8192, temperature: 0.2 }
         };
 
-        // ✅ MEGA CASCATA ANTI-COTA (Bypass Máximo Burlamento de Baldes de Limite Google)
-        // Ocultado do usuário: Tenta dezenas de modelos de nível de desenvolvedor isoladamente para extrair a cota free absoluta.
+        // ✅ MEGA CASCATA ANTI-COTA PURIFICADA (Bypass Máximo Sem Modelo Fantasma Vercel)
+        // Ocultado do usuário: Tenta dezenas de modelos de nível de desenvolvedor isoladamente.
+        // Removido o GEMINI_MODEL do topo para previnir forçamento de modelo exaurido 1.5-flash pela Vercel.
         const candidateModels = [
-            process.env.GEMINI_MODEL,
             "gemini-2.5-flash",
             "gemini-2.5-pro",
             "gemini-2.0-flash",
