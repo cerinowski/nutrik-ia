@@ -119,7 +119,8 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
         const candidateModels = [
             "gemini-2.5-flash",
             "gemini-2.5-pro",
-            "gemini-2.0-flash"
+            "gemini-2.0-flash",
+            "gemini-1.5-flash" // O Tanque de Guerra Gratuito "Sem Limite Zero" Absoluto
         ].filter(Boolean);
 
         let lastErr = null;
