@@ -248,12 +248,35 @@
 
             const userId = session.user.id;
 
+            // --- CÁLCULOS METABÓLICOS ---
+            function calculateTDEE(p) {
+                if (!p.weight || !p.height || !p.age) return 2000;
+                // Mifflin-St Jeor
+                let bmr = (10 * p.weight) + (6.25 * p.height) - (5 * p.age);
+                bmr = p.gender === 'male' ? bmr + 5 : bmr - 161;
+
+                // Nível de atividade (padrão moderado 1.375)
+                let tdee = bmr * 1.375;
+
+                // Ajuste por objetivo
+                if (p.goal === 'lose') return Math.round(tdee - 500);
+                if (p.goal === 'gain') return Math.round(tdee + 400);
+                return Math.round(tdee);
+            }
+
             const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
             let targetCals = 2000;
             if (profile) {
                 document.getElementById('user-greeting').textContent = `Olá, ${profile.full_name?.split(' ')[0] || 'Campeão'}! 🚀`;
                 document.getElementById('weight-target').textContent = `${profile.target_weight || '--'}kg`;
-                targetCals = profile.gender === 'male' ? 2500 : 2000;
+
+                targetCals = calculateTDEE({
+                    weight: profile.current_weight,
+                    height: profile.height,
+                    age: profile.age,
+                    gender: profile.gender,
+                    goal: profile.goal
+                });
                 document.getElementById('target-cals').textContent = targetCals;
             }
 
@@ -268,7 +291,18 @@
                 if (!error) {
                     await supabase.from('profiles').update({ current_weight: w }).eq('id', userId);
                     alert('Peso registrado com sucesso!');
-                    refreshWeight(supabase, userId);
+                    document.getElementById('weight-now').value = '';
+                    // Recalcular TDEE com novo peso e atualizar UI
+                    const newTdee = calculateTDEE({
+                        weight: w,
+                        height: profile.height,
+                        age: profile.age,
+                        gender: profile.gender,
+                        goal: profile.goal
+                    });
+                    document.getElementById('target-cals').textContent = newTdee;
+                    await refreshWeight(supabase, userId);
+                    await refreshDailyMacros(supabase, userId, newTdee);
                 }
             };
 
