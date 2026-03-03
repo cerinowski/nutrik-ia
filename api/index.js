@@ -113,25 +113,56 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
             generationConfig: { maxOutputTokens: 8192, temperature: 0.2 }
         };
 
-        // ✅ TENTATIVA DIRETA DE ALTA PERFORMANCE (Testando a Estabilidade do 2.0 Flash)
-        const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
-        const cleanModel = model.replace('models/', '');
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent`;
+        // ✅ TENTATIVA EM CASCATA FAST-FAIL ANTI-COTA (Bypass Limite Grátis Instantâneo)
+        // Ocultado do usuário: Tenta a versão Pro e volta pras flashes secundárias caso a rota da Google esteja travada
+        const candidateModels = [
+            process.env.GEMINI_MODEL,
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-exp",
+            "gemini-flash-latest"
+        ].filter(Boolean);
 
-        const response = await fetch(url, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "x-goog-api-key": GEMINI_API_KEY,
-            },
-            body: JSON.stringify(payload),
-        });
+        let lastErr = null;
+        let responseData = null;
+        let response = null;
 
-        const responseData = await response.json();
+        for (const model of candidateModels) {
+            const cleanModel = model.replace('models/', '');
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent`;
 
-        if (!response.ok) {
-            console.error("Gemini Direct Error:", responseData);
-            throw new Error(responseData?.error?.message || "Erro na API Gemini");
+            try {
+                response = await fetch(url, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-goog-api-key": GEMINI_API_KEY,
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                responseData = await response.json();
+
+                if (response.ok) {
+                    lastErr = null;
+                    break; // Sucesso com esse modelo, para aqui e segue em frente
+                }
+
+                lastErr = responseData?.error?.message || `Erro no ${cleanModel} (${response.status})`;
+                console.warn(`[ANTI-COTA] Modelo ${cleanModel} bloqueado ou falhou. Tentando o próximo modelo na fração de segundo...`, lastErr);
+
+                // Em caso de erro 429 (Cota) ou 503, cai imediatamente para o próximo modelo sem Delay. 
+                // Evita estourar os 10 segundos gratuitos da Vercel.
+
+            } catch (err) {
+                lastErr = err.message;
+                console.warn(`[ANTI-COTA] Problema de fetch no ${cleanModel}:`, lastErr);
+            }
+        }
+
+        if (lastErr) {
+            console.error("Gemini Multi-Cascade Failed Integrally:", lastErr, responseData);
+            throw new Error(lastErr);
         }
 
         let reply = "Não consegui processar a análise.";
