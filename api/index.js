@@ -234,10 +234,12 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
         // Array contendo EXCLUSIVAMENTE modelos rápidos do Free Tier da Google (limitados a ~15 RPM).
         // Evitamos usar os modelos 'pro' pois a cota deles no Free Tier é de apenas 2 RPM e bloqueia imediatamente.
         const candidateModels = [
-            "gemini-2.5-flash", // Pode não existir ainda, mas fica pro futuro
+            "gemini-2.5-flash",
+            "gemini-2.5-flash-lite", // Fallback Econômico Super Leve 2.5
             "gemini-2.0-flash",
-            "gemini-1.5-flash",
-            "gemini-1.5-flash-8b"
+            "gemini-2.0-flash-lite", // Fallback Econômico Super Leve 2.0
+            "gemini-flash-latest",
+            "gemini-pro-latest"
         ].filter(Boolean);
 
         let lastErr = null;
