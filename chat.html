@@ -292,6 +292,7 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
             try {
+                const supabase = window.supabaseClient;
                 const { data: { session } } = await supabase.auth.getSession();
                 const userId = session?.user?.id;
 
@@ -315,6 +316,8 @@
                 // Remove loading e cria a bolha da IA
                 document.getElementById(loadingId).remove();
 
+                const data = await response.json();
+                const fullText = data.reply || "Desculpe, não consegui processar a análise.";
 
                 // Adiciona mensagem e preenche a bolha
                 appendMessage(fullText, false, !!imageToSend, false);
