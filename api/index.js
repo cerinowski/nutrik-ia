@@ -126,28 +126,48 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
 
         for (const model of candidateModels) {
             const cleanModel = model.replace('models/', '');
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent`;
+            let modelSuccess = false;
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    const response = await fetch(url, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "x-goog-api-key": GEMINI_API_KEY,
+                        },
+                        body: JSON.stringify(payload),
+                    });
 
-            try {
-                const response = await fetch(url, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "x-goog-api-key": GEMINI_API_KEY,
-                    },
-                    body: JSON.stringify(payload),
-                });
+                    responseData = await response.json();
 
-                responseData = await response.json();
+                    if (response.ok) {
+                        lastErr = null;
+                        modelSuccess = true;
+                        break; // Sai do loop de tentativas deste modelo
+                    }
 
-                if (response.ok) {
-                    lastErr = null;
-                    break;
+                    lastErr = responseData?.error?.message || `Falha com modelo ${cleanModel}`;
+
+                    // Se for erro de trânsito (High Demand) ou Cota, e não for a última tentativa, dorme e tenta de novo
+                    if ((response.status === 503 || response.status === 429 || lastErr.includes("high demand")) && attempt < 3) {
+                        console.log(`[RETRY] Google engarrafado (${response.status}) no modelo ${cleanModel}. Tentativa ${attempt}/3. Aguardando 2.5s...`);
+                        await new Promise(r => setTimeout(r, 2500));
+                    } else {
+                        break; // Se não for erro de trânsito, ou for ultima tentativa, desiste deste modelo
+                    }
+
+                } catch (fetchErr) {
+                    lastErr = fetchErr.message;
+                    if (attempt < 3) {
+                        console.log(`[RETRY] Falha de Fetch no ${cleanModel}. Tentando ${attempt}/3. Aguardando 2.5s...`);
+                        await new Promise(r => setTimeout(r, 2500));
+                    } else {
+                        break;
+                    }
                 }
-                lastErr = responseData?.error?.message || `Falha com modelo ${cleanModel}`;
-            } catch (fetchErr) {
-                lastErr = fetchErr.message;
-            }
+            } // Fim Retry Loop
+
+            if (modelSuccess) break; // Sai da cascata se o modelo atual funcionou
         }
 
         if (lastErr) {
