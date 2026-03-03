@@ -61,8 +61,13 @@ app.get('/api/debug-gemini-models', async (req, res) => {
 // ✅ CHAT COM CASCATA (v1beta por padrão)
 app.post('/api/chat', validateApiKey, async (req, res) => {
     try {
-        const { message, imageBase64, history } = req.body;
+        const { message, imageBase64, history, profile } = req.body;
         if (!message && !imageBase64) return res.status(400).json({ error: 'Mensagem ou imagem obrigatória' });
+
+        let profileContext = "";
+        if (profile) {
+            profileContext = `\n\n[DADOS DO PACIENTE]\n- Nome: ${profile.name || 'Não informado'}\n- Peso Atual: ${profile.current_weight || 'Não informado'} kg\n- TMB (Basal): ${profile.tdee || 'Não calculado'} kcal\n- Objetivo: ${profile.goal || 'Não informado'}\n- Sexo: ${profile.gender || 'Não informado'}\n- Altura: ${profile.height || 'Não informado'} cm\n- Idade: ${profile.age || 'Não informado'} anos\nUse esses dados pessoais sempre que o usuário perguntar sobre si mesmo, seu peso, sua taxa basal ou seu plano!`;
+        }
 
         let contents = [];
 
@@ -71,7 +76,7 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
             contents = [
                 {
                     role: "user",
-                    parts: [{ text: "Você é o Nutrik.IA, um expert nutricional e parceiro motivador. REGRA ABSOLUTA: Toda vez que você analisar uma refeição real (imagem), você OBRIGATORIAMENTE DEVE estruturar sua resposta visualmente usando o seguinte formato Exato:\n\n**ANÁLISE DO SEU PRATO:**\n- [Alimento 1] (Aprox. [X]g)\n- [Alimento 2] (Aprox. [X]g)\n\n**🔍 MACROS ESTIMADOS TOTAIS:**\n🔥 Calorias: **[X] kcal**\n🍗 Proteínas: **[X]g**\n🥖 Carboidratos: **[X]g**\n🥑 Gorduras: **[X]g**\n\n💡 **Dica do Nutrik:** [Dica amigável e técnica sobre a refeição ou como melhorá-la].\n\nPRIORIZE a legenda/descrição enviada pelo usuário como o campo 'description' no JSON. DEPOIS de todo esse texto, você DEVE terminar com um bloco JSON exato: ```json {\"calories\": 0, \"protein\": 0, \"carbs\": 0, \"fat\": 0, \"description\": \"legenda do usuario\"} ```" }]
+                    parts: [{ text: "Você é o Nutrik.IA, um expert nutricional e parceiro motivador. REGRA ABSOLUTA: Toda vez que você analisar uma refeição real (imagem), você OBRIGATORIAMENTE DEVE estruturar sua resposta visualmente usando o seguinte formato Exato:\n\n**ANÁLISE DO SEU PRATO:**\n- [Alimento 1] (Aprox. [X]g)\n- [Alimento 2] (Aprox. [X]g)\n\n**🔍 MACROS ESTIMADOS TOTAIS:**\n🔥 Calorias: **[X] kcal**\n🍗 Proteínas: **[X]g**\n🥖 Carboidratos: **[X]g**\n🥑 Gorduras: **[X]g**\n\n💡 **Dica do Nutrik:** [Dica amigável e técnica sobre a refeição ou como melhorá-la].\n\nPRIORIZE a legenda/descrição enviada pelo usuário como o campo 'description' no JSON. DEPOIS de todo esse texto, você DEVE terminar com um bloco JSON exato: ```json {\"calories\": 0, \"protein\": 0, \"carbs\": 0, \"fat\": 0, \"description\": \"legenda do usuario\"} ```" + profileContext }]
                 },
                 {
                     role: "model",
@@ -83,7 +88,7 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
             contents = [
                 {
                     role: "user",
-                    parts: [{ text: "Você é o Nutrik.IA, um expert nutricional e amigo do usuário. O usuário está tirando uma dúvida geral sobre alimentos, rotina ou nutrição, e não enviou uma foto de uma refeição para ser registrada.\nResponda amigavelmente, cite números se necessário (ex: calorias de um snickers), mas **PROIBIDO GERAR BLOCOS DE CÓDIGO JSON**. Apenas converse e tire as dúvidas como um bom mentor, de forma direta!" }]
+                    parts: [{ text: "Você é o Nutrik.IA, um expert nutricional e amigo do usuário. O usuário está tirando uma dúvida geral sobre alimentos, rotina ou nutrição, e não enviou uma foto de uma refeição para ser registrada.\nResponda amigavelmente, cite números se necessário (ex: calorias de um snickers), mas **PROIBIDO GERAR BLOCOS DE CÓDIGO JSON**. Apenas converse e tire as dúvidas como um bom mentor, de forma direta!" + profileContext }]
                 },
                 {
                     role: "model",
