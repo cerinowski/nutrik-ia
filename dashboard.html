@@ -107,6 +107,7 @@
                 <i data-lucide="activity" style="color: var(--primary);"></i> Resumo de Hoje
             </h3>
 
+            <!-- Macros Bars -->
             <div class="stat-label">Proteínas</div>
             <div class="macro-bar">
                 <div class="macro-progress" id="bar-protein" style="width: 0%; background: #4CAF50;"></div>
@@ -122,21 +123,34 @@
                 <div class="macro-progress" id="bar-fat" style="width: 0%; background: #F44336;"></div>
             </div>
 
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 10px;">
+            <!-- Calorias Unificadas -->
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; background: #ccff0010; padding: 15px; border-radius: 12px; border: 1px dashed var(--primary);">
                 <div style="text-align: left;">
-                    <div class="stat-label">Restante</div>
-                    <div id="remaining-cals" style="font-size: 20px; font-weight: 800; color: var(--primary);">---</div>
+                    <div class="stat-label"
+                        style="color: #000; opacity: 0.6; font-size: 11px; text-transform: uppercase;">Restante</div>
+                    <div id="remaining-cals" style="font-size: 24px; font-weight: 900; color: #000;">---</div>
                 </div>
-                <div style="text-align: right; font-weight: 800; font-size: 18px;">
-                    <span id="current-cals">0</span> / <span id="target-cals">---</span> kcal
+                <div style="text-align: right;">
+                    <div class="stat-label"
+                        style="color: #000; opacity: 0.6; font-size: 11px; text-transform: uppercase;">Consumido</div>
+                    <div style="font-size: 18px; font-weight: 800; color: #000;">
+                        <span id="current-cals">0</span><span style="font-size: 12px; opacity: 0.5; margin-left: 2px;">/
+                            <span id="target-cals">---</span> kcal</span>
+                    </div>
                 </div>
             </div>
 
+            <!-- Lista de Refeições -->
             <div id="meals-list-container"
                 style="margin-top: 24px; border-top: 1.5px solid #f0f0f0; padding-top: 16px;">
-                <h4 style="font-size: 14px; margin-bottom: 12px; color: #666;">Refeições de Hoje</h4>
-                <div id="today-meals-list" style="display: flex; flex-direction: column; gap: 10px;">
-                    <p style="font-size: 13px; color: #999; text-align: center;">Nenhuma refeição registrada ainda.</p>
+                <h4
+                    style="font-size: 14px; margin-bottom: 12px; color: #000; font-weight: 800; display: flex; align-items: center; gap: 5px;">
+                    <i data-lucide="clock" style="width: 14px; height: 14px;"></i> Diário de Hoje
+                </h4>
+                <div id="today-meals-list" style="display: flex; flex-direction: column; gap: 8px;">
+                    <p style="font-size: 13px; color: #999; text-align: center; padding: 10px;">Ainda não detectamos
+                        fotos de hoje.</p>
                 </div>
             </div>
         </div>
@@ -195,30 +209,31 @@
                     fat: acc.fat + (m.fat || 0)
                 }), { cal: 0, pro: 0, carb: 0, fat: 0 });
 
+                // Atualizar Calorias
                 document.getElementById('current-cals').textContent = total.cal;
 
                 const remaining = targetCals - total.cal;
                 const remainingElem = document.getElementById('remaining-cals');
                 remainingElem.textContent = `${remaining} kcal`;
-                remainingElem.style.color = remaining < 0 ? '#DC2626' : '#ccff00';
+                remainingElem.style.color = remaining < 0 ? '#DC2626' : '#000';
 
-                // Mostrar lista de refeições
+                // Mostrar lista de refeições formatada
                 const listContainer = document.getElementById('today-meals-list');
                 if (meals.length > 0) {
                     listContainer.innerHTML = meals.map(m => `
-                        <div style="display: flex; justify-content: space-between; padding: 10px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
                             <div style="display: flex; flex-direction: column;">
                                 <span style="font-size: 14px; font-weight: 700; color: #000;">${m.description || 'Refeição'}</span>
                                 <span style="font-size: 11px; color: #64748b;">${new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
-                            <span style="font-weight: 800; color: #000;">${m.calories} kcal</span>
+                            <span style="font-weight: 800; color: #000; font-size: 14px;">+${m.calories} <small style="font-size: 9px; opacity: 0.6;">kcal</small></span>
                         </div>
                     `).join('');
                 } else {
-                    listContainer.innerHTML = '<p style="font-size: 13px; color: #999; text-align: center;">Nenhuma refeição registrada hoje.</p>';
+                    listContainer.innerHTML = '<p style="font-size: 13px; color: #999; text-align: center; padding: 10px;">Ainda não detectamos fotos de hoje.</p>';
                 }
 
-                // Estimativa de Macros baseada no Target Cals (Pro 30%, Carb 40%, Fat 30%)
+                // Barras de Macros (Pro 30%, Carb 40%, Fat 30%)
                 const targetPro = (targetCals * 0.3) / 4;
                 const targetCarb = (targetCals * 0.4) / 4;
                 const targetFat = (targetCals * 0.3) / 9;
@@ -229,8 +244,6 @@
 
                 document.getElementById('bar-protein').style.width = `${pctPro}%`;
                 document.getElementById('bar-carbs').style.width = `${pctCarb}%`;
-                document.getElementById('bar-fat').style.width = `${pctFat}%`;
-
                 document.getElementById('bar-fat').style.width = `${pctFat}%`;
 
                 const curCalsElem = document.getElementById('current-cals');
