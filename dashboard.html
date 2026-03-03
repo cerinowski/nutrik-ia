@@ -144,7 +144,8 @@
                 </div>
                 <div style="text-align: right;">
                     <div class="stat-label">Meta</div>
-                    <div class="stat-value" id="weight-target" style="color: #4CAF50;">--</div>
+                    <div class="stat-value" id="weight-target"
+                        style="color: #4CAF50; font-size: 24px; font-weight: 800;">--</div>
                 </div>
             </div>
         </div>
@@ -191,6 +192,7 @@
                 document.getElementById('bar-fat').style.width = `${pctFat}%`;
 
                 if (total.cal > targetCals) document.getElementById('current-cals').style.color = '#DC2626';
+                else document.getElementById('current-cals').style.color = '#000';
             }
         }
 
@@ -255,7 +257,10 @@
             let targetCals = 2000;
             if (profile) {
                 document.getElementById('user-greeting').textContent = `Olá, ${profile.full_name?.split(' ')[0] || 'Campeão'}!`;
-                document.getElementById('weight-target').textContent = `${profile.target_weight || '--'}kg`;
+                // CORREÇÃO: Forçar exibição da meta de peso
+                const tWeight = profile.target_weight;
+                document.getElementById('weight-target').textContent = tWeight ? `${tWeight}kg` : '--kg';
+
                 targetCals = calculateTDEE({
                     weight: profile.current_weight,
                     height: profile.height,
@@ -270,13 +275,15 @@
             await refreshWeight(supabase, userId);
 
             document.getElementById('save-weight').onclick = async () => {
-                const w = parseFloat(document.getElementById('weight-now').value);
+                const wInput = document.getElementById('weight-now');
+                const w = parseFloat(wInput.value);
                 if (!w) return alert('Insira um peso válido');
+
                 const { error } = await supabase.from('weight_history').insert({ user_id: userId, weight: w });
                 if (!error) {
                     await supabase.from('profiles').update({ current_weight: w }).eq('id', userId);
                     alert('Peso registrado com sucesso!');
-                    document.getElementById('weight-now').value = '';
+                    wInput.value = '';
                     const newTdee = calculateTDEE({ weight: w, height: profile.height, age: profile.age, gender: profile.gender, goal: profile.goal });
                     document.getElementById('target-cals').textContent = newTdee;
                     await refreshWeight(supabase, userId);
