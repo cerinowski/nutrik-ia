@@ -31,11 +31,26 @@
             cursor: pointer;
             text-align: center;
             font-size: 13px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .btn-goal i {
+            width: 20px;
+            height: 20px;
+            color: #666;
         }
 
         .btn-goal.active {
             background: var(--primary);
             border-color: #000;
+        }
+
+        .btn-goal.active i {
+            color: #000;
         }
     </style>
 </head>
@@ -48,13 +63,15 @@
         </div>
         <div class="nav-actions">
             <a href="dashboard.html" class="btn-chat-nav" style="background: #F3F4F6; color: #000;">
-                Voltar
+                <i data-lucide="arrow-left" style="width: 18px; height: 18px;"></i> Voltar
             </a>
         </div>
     </header>
 
     <div class="profile-card">
-        <h1 style="font-family: 'Outfit'; margin-bottom: 20px;">Seu Perfil</h1>
+        <h1 style="font-family: 'Outfit'; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+            <i data-lucide="user-cog" style="color: var(--primary);"></i> Seu Perfil
+        </h1>
         <form id="profile-form">
             <div class="form-group">
                 <label>Nome Completo</label>
@@ -67,7 +84,7 @@
                 </div>
                 <div class="form-group">
                     <label>Gênero</label>
-                    <select id="gender" style="width: 100%; padding: 10px; border-radius: 8px;">
+                    <select id="gender" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #000;">
                         <option value="male">Masculino</option>
                         <option value="female">Feminino</option>
                     </select>
@@ -87,13 +104,26 @@
                 <label>Altura (cm)</label>
                 <input type="number" id="height" required>
             </div>
-            <label style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 10px;">Objetivo</label>
+            <label style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 10px;">Objetivo
+                Profissional</label>
             <div class="grid-2" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom: 20px;">
-                <div class="btn-goal" data-goal="lose">Emagrecer</div>
-                <div class="btn-goal" data-goal="maintain">Manter</div>
-                <div class="btn-goal" data-goal="gain">Ganhar</div>
+                <div class="btn-goal" data-goal="lose">
+                    <i data-lucide="trending-down"></i>
+                    <span>Emagrecer</span>
+                </div>
+                <div class="btn-goal" data-goal="maintain">
+                    <i data-lucide="minus"></i>
+                    <span>Manter</span>
+                </div>
+                <div class="btn-goal" data-goal="gain">
+                    <i data-lucide="trending-up"></i>
+                    <span>Ganhar</span>
+                </div>
             </div>
-            <button type="submit" class="btn-primary" style="width: 100%;">Salvar Alterações</button>
+            <button type="submit" class="btn-primary"
+                style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                <i data-lucide="check-circle" style="width: 20px; height: 20px;"></i> Salvar Alterações
+            </button>
         </form>
     </div>
 
@@ -102,6 +132,7 @@
         let selectedGoal = 'maintain';
         async function initProfile() {
             if (!window.supabaseClient) { setTimeout(initProfile, 50); return; }
+            lucide.createIcons();
             const supabase = window.supabaseClient;
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) { window.location.href = 'index.html'; return; }
@@ -143,10 +174,10 @@
                 };
                 const { error } = await supabase.from('profiles').upsert(pData);
                 if (!error) {
-                    alert('Perfil atualizado!');
+                    alert('Perfil atualizado com sucesso!');
                     window.location.href = 'dashboard.html';
                 } else {
-                    alert('Erro: ' + error.message);
+                    alert('Erro ao salvar: ' + error.message);
                 }
             };
         }

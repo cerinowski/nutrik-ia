@@ -70,23 +70,6 @@
             border: 1.5px solid #000;
             margin-bottom: 12px;
         }
-
-        .header-actions {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-
-        .header-actions a,
-        .header-actions button {
-            text-decoration: none;
-            color: inherit;
-            background: none;
-            border: none;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-        }
     </style>
 </head>
 
@@ -98,10 +81,10 @@
         </div>
         <div class="nav-actions">
             <a href="profile.html" class="nav-icon-link" title="Meu Perfil">
-                <i data-lucide="user" style="width: 20px; height: 20px;"></i>
+                <i data-lucide="user" style="width: 20px; height: 20px; color: #000;"></i>
             </a>
             <a href="chat.html" class="btn-chat-nav">
-                Chat 🤖
+                <i data-lucide="message-square" style="width: 18px; height: 18px;"></i> Chat
             </a>
             <button id="logout-btn" class="btn-logout-nav" title="Sair">
                 <i data-lucide="log-out" style="width: 20px; height: 20px;"></i>
@@ -110,14 +93,18 @@
     </header>
 
     <div class="dashboard-grid">
-        <div class="card card-full" style="background: #000; color: #fff;">
-            <h2 id="user-greeting" style="font-family: 'Outfit', sans-serif; font-size: 28px;">Olá! 🚀</h2>
-            <p style="opacity: 0.8;">Vamos ver como está seu progresso hoje.</p>
+        <div class="card card-full"
+            style="background: #000; color: #fff; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h2 id="user-greeting" style="font-family: 'Outfit', sans-serif; font-size: 28px;">Olá!</h2>
+                <p style="opacity: 0.8;">Seu progresso diário está aqui.</p>
+            </div>
+            <i data-lucide="trending-up" style="width: 40px; height: 40px; color: var(--primary);"></i>
         </div>
 
         <div class="card">
             <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
-                <i data-lucide="flame" style="color: #FF4500;"></i> Resumo de Hoje
+                <i data-lucide="activity" style="color: var(--primary);"></i> Resumo de Hoje
             </h3>
 
             <div class="stat-label">Proteínas</div>
@@ -141,11 +128,15 @@
         </div>
 
         <div class="card">
-            <h3 style="margin-bottom: 12px;">📊 Registro de Peso</h3>
-            <p style="font-size: 14px; color: #666; margin-bottom: 16px;">Mantenha seu peso atualizado para o gráfico.
-            </p>
+            <h3 style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="scale" style="color: var(--primary);"></i> Registro de Peso
+            </h3>
+            <p style="font-size: 14px; color: #666; margin-bottom: 16px;">Mantenha seu peso atualizado.</p>
             <input type="number" id="weight-now" class="weight-input" placeholder="Peso atual (kg)" step="0.1">
-            <button class="btn-primary" id="save-weight" style="width: 100%;">Salvar Registro ⚖️</button>
+            <button class="btn-primary" id="save-weight"
+                style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <i data-lucide="save" style="width: 18px; height: 18px;"></i> Salvar Registro
+            </button>
             <div style="margin-top: 20px; display: flex; justify-content: space-between;">
                 <div>
                     <div class="stat-label">Inicial</div>
@@ -159,7 +150,9 @@
         </div>
 
         <div class="card card-full">
-            <h3 style="margin-bottom: 20px;">📈 Sua Evolução</h3>
+            <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="line-chart" style="color: var(--primary);"></i> Sua Evolução
+            </h3>
             <canvas id="weightChart" style="width: 100%; height: 300px;"></canvas>
         </div>
     </div>
@@ -219,8 +212,8 @@
                         datasets: [{
                             label: 'Peso (kg)',
                             data: weights,
-                            borderColor: '#D4FF00',
-                            backgroundColor: 'rgba(212, 255, 0, 0.1)',
+                            borderColor: '#ccff00',
+                            backgroundColor: 'rgba(204, 255, 0, 0.1)',
                             tension: 0.4,
                             fill: true,
                             pointBackgroundColor: '#000',
@@ -248,17 +241,11 @@
 
             const userId = session.user.id;
 
-            // --- CÁLCULOS METABÓLICOS ---
             function calculateTDEE(p) {
                 if (!p.weight || !p.height || !p.age) return 2000;
-                // Mifflin-St Jeor
                 let bmr = (10 * p.weight) + (6.25 * p.height) - (5 * p.age);
                 bmr = p.gender === 'male' ? bmr + 5 : bmr - 161;
-
-                // Nível de atividade (padrão moderado 1.375)
                 let tdee = bmr * 1.375;
-
-                // Ajuste por objetivo
                 if (p.goal === 'lose') return Math.round(tdee - 500);
                 if (p.goal === 'gain') return Math.round(tdee + 400);
                 return Math.round(tdee);
@@ -267,9 +254,8 @@
             const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
             let targetCals = 2000;
             if (profile) {
-                document.getElementById('user-greeting').textContent = `Olá, ${profile.full_name?.split(' ')[0] || 'Campeão'}! 🚀`;
+                document.getElementById('user-greeting').textContent = `Olá, ${profile.full_name?.split(' ')[0] || 'Campeão'}!`;
                 document.getElementById('weight-target').textContent = `${profile.target_weight || '--'}kg`;
-
                 targetCals = calculateTDEE({
                     weight: profile.current_weight,
                     height: profile.height,
@@ -286,20 +272,12 @@
             document.getElementById('save-weight').onclick = async () => {
                 const w = parseFloat(document.getElementById('weight-now').value);
                 if (!w) return alert('Insira um peso válido');
-
                 const { error } = await supabase.from('weight_history').insert({ user_id: userId, weight: w });
                 if (!error) {
                     await supabase.from('profiles').update({ current_weight: w }).eq('id', userId);
                     alert('Peso registrado com sucesso!');
                     document.getElementById('weight-now').value = '';
-                    // Recalcular TDEE com novo peso e atualizar UI
-                    const newTdee = calculateTDEE({
-                        weight: w,
-                        height: profile.height,
-                        age: profile.age,
-                        gender: profile.gender,
-                        goal: profile.goal
-                    });
+                    const newTdee = calculateTDEE({ weight: w, height: profile.height, age: profile.age, gender: profile.gender, goal: profile.goal });
                     document.getElementById('target-cals').textContent = newTdee;
                     await refreshWeight(supabase, userId);
                     await refreshDailyMacros(supabase, userId, newTdee);

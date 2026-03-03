@@ -1,15 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@800&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-    --primary: #D4FF00;
-    --primary-hover: #bce600;
+    --primary: #ccff00;
+    --primary-hover: #b8e600;
     --bg-main: #FFFFFF;
     --bg-chat: #F0F2F5;
     --text-dark: #000000;
     --text-muted: #555555;
     --border-color: #000000;
     --border-light: #E5E7EB;
-    --chat-my-msg: #D4FF00;
+    --chat-my-msg: #ccff00;
     --chat-ai-msg: #FFFFFF;
 }
 
