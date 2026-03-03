@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nutrik.IA - Perfil</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .onboarding-card {
+            max-width: 500px;
+            margin: 40px auto;
+            background: white;
+            padding: 40px;
+            border-radius: 24px;
+            border: 1.5px solid #000;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+        }
+
+        .step-title {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .step-desc {
+            color: #666;
+            margin-bottom: 32px;
+            font-size: 15px;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .btn-goal {
+            background: #fff;
+            border: 1.5px solid #E5E7EB;
+            padding: 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            font-weight: 600;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-goal:hover {
+            border-color: var(--primary);
+            background: rgba(212, 255, 0, 0.05);
+        }
+
+        .btn-goal.active {
+            border-color: #000;
+            background: var(--primary);
+        }
+
+        .btn-goal i {
+            width: 24px;
+            height: 24px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="onboarding-card">
+        <div class="logo-container" style="font-size: 32px; margin-bottom: 24px; justify-content: flex-start;">
+            <span class="logo-text">nutrik</span>
+            <span class="logo-bubble" style="font-size: 32px; padding: 2px 10px 4px 8px;">.ia</span>
+        </div>
+
+        <div id="step-1">
+            <h1 class="step-title">Vamos nos conhecer!</h1>
+            <p class="step-desc">Para calcular sua dieta com precisão, preciso de alguns dados básicos.</p>
+
+            <form id="profile-form">
+                <div class="form-group">
+                    <label>Nome Completo</label>
+                    <input type="text" id="full_name" placeholder="Como quer ser chamado?" required>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Idade</label>
+                        <input type="number" id="age" placeholder="Ex: 25" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Gênero</label>
+                        <select id="gender"
+                            style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #000;">
+                            <option value="male">Masculino</option>
+                            <option value="female">Feminino</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Peso Atual (kg)</label>
+                        <input type="number" id="current_weight" step="0.1" placeholder="Ex: 85.5" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Altura (cm)</label>
+                        <input type="number" id="height" placeholder="Ex: 175" required>
+                    </div>
+                </div>
+
+                <label style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 12px;">Seu
+                    Objetivo</label>
+                <div class="grid-2" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom: 24px;">
+                    <div class="btn-goal" data-goal="lose">
+                        <i data-lucide="trending-down"></i>
+                        <span style="font-size: 12px;">Emagrecer</span>
+                    </div>
+                    <div class="btn-goal" data-goal="maintain">
+                        <i data-lucide="target"></i>
+                        <span style="font-size: 12px;">Manter</span>
+                    </div>
+                    <div class="btn-goal" data-goal="gain">
+                        <i data-lucide="trending-up"></i>
+                        <span style="font-size: 12px;">Ganhar Massa</span>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-primary" id="save-btn" style="width: 100%;">Finalizar Perfil ⚡</button>
+            </form>
+        </div>
+    </div>
+
+    <script type="module" src="config.js"></script>
+    <script>
+        let selectedGoal = 'maintain';
+        const goals = document.querySelectorAll('.btn-goal');
+
+        goals.forEach(btn => {
+            btn.addEventListener('click', () => {
+                goals.forEach(g => g.classList.remove('active'));
+                btn.classList.add('active');
+                selectedGoal = btn.dataset.goal;
+            });
+        });
+
+        // Default active goal
+        document.querySelector('[data-goal="maintain"]').classList.add('active');
+
+        async function initOnboarding() {
+            if (!window.supabaseClient) {
+                setTimeout(initOnboarding, 50);
+                return;
+            }
+            lucide.createIcons();
+
+            const supabase = window.supabaseClient;
+            const { data: { session } } = await supabase.auth.getSession();
+
+            if (!session) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            document.getElementById('profile-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('save-btn');
+                btn.textContent = 'Salvando...';
+                btn.disabled = true;
+
+                const profileData = {
+                    id: session.user.id,
+                    full_name: document.getElementById('full_name').value,
+                    age: parseInt(document.getElementById('age').value),
+                    gender: document.getElementById('gender').value,
+                    current_weight: parseFloat(document.getElementById('current_weight').value),
+                    height: parseInt(document.getElementById('height').value),
+                    goal: selectedGoal,
+                    onboarding_completed: true,
+                    updated_at: new Date().toISOString()
+                };
+
+                try {
+                    // Update profile
+                    const { error: pError } = await supabase.from('profiles').upsert(profileData);
+                    if (pError) throw pError;
+
+                    // Save initial weight to history
+                    const { error: wError } = await supabase.from('weight_history').insert({
+                        user_id: session.user.id,
+                        weight: profileData.current_weight
+                    });
+                    if (wError) throw wError;
+
+                    window.location.href = 'chat.html'; // Próximo passo: Dashboard
+                } catch (err) {
+                    alert('Erro ao salvar: ' + err.message);
+                    btn.textContent = 'Finalizar Perfil ⚡';
+                    btn.disabled = false;
+                }
+            });
+        }
+
+        initOnboarding();
+    </script>
+</body>
+
+</html>

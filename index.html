@@ -108,17 +108,28 @@
             if (isLoginMode) {
               const { data, error } = await supabase.auth.signInWithPassword({ email, password });
               if (error) throw error;
-              window.location.href = 'chat.html';
+
+              // Verificar se o perfil está completo
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('onboarding_completed')
+                .eq('id', data.user.id)
+                .single();
+
+              if (profile && profile.onboarding_completed) {
+                window.location.href = 'chat.html';
+              } else {
+                window.location.href = 'onboarding.html';
+              }
             } else {
               const { data, error } = await supabase.auth.signUp({ email, password });
               if (error) throw error;
 
               if (data.session) {
-                window.location.href = 'chat.html';
+                window.location.href = 'onboarding.html';
               } else {
                 authSuccess.textContent = 'Conta criada! Confirme seu email ou faça login.';
                 authSuccess.style.display = 'block';
-                // switch back to login mode visually
                 setTimeout(() => toggleMode.click(), 3000);
               }
             }
