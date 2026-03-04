@@ -472,7 +472,8 @@
 
                         const creditCountEl = document.getElementById('credit-count');
                         if (creditCountEl) {
-                            if (currentUser.plan === 'premium') {
+                            const userPlan = (currentUser.plan || '').trim().toLowerCase();
+                            if (userPlan === 'premium') {
                                 creditCountEl.innerHTML = '<span style="font-size: 10px; text-transform: uppercase;">Ilimitado</span>';
                             } else {
                                 creditCountEl.textContent = credits;
