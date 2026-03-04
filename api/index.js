@@ -14,7 +14,81 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(cors());
+
+// Webhook da Stripe precisa do body original sem parse pra checar a assinatura
+app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    let event;
+
+    try {
+        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    } catch (err) {
+        console.error('⚠️  Erro no Webhook da Stripe:', err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    // Handle the checkout.session.completed event
+    if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
+        const userId = session.metadata.userId;
+
+        if (userId) {
+            console.log(`💰 Pagamento recebido para userId: ${userId}. Atualizando plano...`);
+            // Update Supabase
+            const { error } = await supabaseAdmin
+                .from('profiles')
+                .update({ plan: 'premium', credits: null }) // Usando credits: null ou um valor alto se preferir, a logica frontend já verifica o plano
+                .eq('id', userId);
+
+            if (error) {
+                console.error("Erro ao atualizar plano no Supabase:", error);
+            } else {
+                console.log("✅ Plano Premium ativado com sucesso para:", userId);
+            }
+        }
+    }
+
+    res.json({ received: true });
+});
+
+// Middleware padrao para o resto das rotas
 app.use(express.json({ limit: '50mb' }));
+
+app.post('/api/checkout-session', async (req, res) => {
+    try {
+        const { email, userId } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ error: "userId obrigatório." });
+        }
+
+        const origin = req.headers.origin || 'https://nutrik-ia.vercel.app'; // Fallback ajeitado caso origin venha vazio
+
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            customer_email: email, // Auto-preenche o email do usuario
+            line_items: [
+                {
+                    price: 'price_1T7GfOFobyRkpryqz29bCT7W', // O ID do Produto na Stripe
+                    quantity: 1,
+                },
+            ],
+            mode: 'subscription', // Modo assinatura
+            success_url: `${origin}/dashboard.html?premium=success`,
+            cancel_url: `${origin}/plans.html?canceled=true`,
+            metadata: {
+                userId: userId // Extremamente importante para sabermos quem comprou no webhook
+            }
+        });
+
+        res.json({ url: session.url });
+    } catch (error) {
+        console.error("Erro ao criar Stripe Session:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // Middleware para validar chave de API
 const validateApiKey = (req, res, next) => {
