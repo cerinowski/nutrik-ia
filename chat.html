@@ -172,20 +172,24 @@
 
             // Deduct credits for AI responses containing images ONLY
             if (!isUser && isImageAnalysis) {
-                // Deduct locally for instant UI update
-                credits -= 5;
-                if (credits < 0) credits = 0;
-                document.getElementById('credit-count').textContent = credits;
+                const isPremium = window.currentUser?.plan === 'premium';
 
-                // Update Supabase Database
-                if (typeof window.currentUser !== 'undefined' && window.currentUser) {
-                    window.supabaseClient
-                        .from('profiles')
-                        .update({ credits: credits })
-                        .eq('id', window.currentUser.id)
-                        .then(({ error }) => {
-                            if (error) console.error("Erro ao atualizar os créditos no banco:", error);
-                        });
+                if (!isPremium) {
+                    // Deduct locally for instant UI update
+                    credits -= 5;
+                    if (credits < 0) credits = 0;
+                    document.getElementById('credit-count').textContent = credits;
+
+                    // Update Supabase Database
+                    if (typeof window.currentUser !== 'undefined' && window.currentUser) {
+                        window.supabaseClient
+                            .from('profiles')
+                            .update({ credits: credits })
+                            .eq('id', window.currentUser.id)
+                            .then(({ error }) => {
+                                if (error) console.error("Erro ao atualizar os créditos no banco:", error);
+                            });
+                    }
                 }
             }
 
@@ -263,7 +267,9 @@
 
             if (!text && !imageToSend) return;
 
-            if (imageToSend && credits < 5) {
+            const isPremium = window.currentUser?.plan === 'premium';
+
+            if (imageToSend && credits < 5 && !isPremium) {
                 alert("Você não tem créditos suficientes para enviar imagens (custa 5 créditos). Assine o Premium!");
                 return;
             }
@@ -368,12 +374,15 @@
 
                 // Deduct credits if image
                 if (!!imageToSend) {
-                    credits -= 5;
-                    if (credits < 0) credits = 0;
-                    document.getElementById('credit-count').textContent = credits;
-                    if (typeof window.currentUser !== 'undefined' && window.currentUser) {
-                        window.supabaseClient.from('profiles').update({ credits: credits }).eq('id', window.currentUser.id)
-                            .then(({ error }) => { if (error) console.error("Credit update err:", error) });
+                    const isPremium = window.currentUser?.plan === 'premium';
+                    if (!isPremium) {
+                        credits -= 5;
+                        if (credits < 0) credits = 0;
+                        document.getElementById('credit-count').textContent = credits;
+                        if (typeof window.currentUser !== 'undefined' && window.currentUser) {
+                            window.supabaseClient.from('profiles').update({ credits: credits }).eq('id', window.currentUser.id)
+                                .then(({ error }) => { if (error) console.error("Credit update err:", error) });
+                        }
                     }
                 }
 
@@ -462,7 +471,13 @@
                         }
 
                         const creditCountEl = document.getElementById('credit-count');
-                        if (creditCountEl) creditCountEl.textContent = credits;
+                        if (creditCountEl) {
+                            if (currentUser.plan === 'premium') {
+                                creditCountEl.innerHTML = '<span style="font-size: 10px; text-transform: uppercase;">Ilimitado</span>';
+                            } else {
+                                creditCountEl.textContent = credits;
+                            }
+                        }
 
                         // Restore history on page load after auth
                         if (chatHistory.length > 0) {
