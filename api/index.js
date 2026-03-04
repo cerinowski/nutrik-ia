@@ -238,31 +238,41 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
             });
         }
 
-        if (imageBase64) {
-            // FLUXO DE IMAGEM: Exige template rígido e bloco JSON para banco de dados
-            contents.push(
-                {
-                    role: "user",
-                    parts: [{ text: "Você é o Nutrik.IA, um expert nutricional e parceiro motivador. REGRA ABSOLUTA: Toda vez que você analisar uma refeição real (imagem), você OBRIGATORIAMENTE DEVE estruturar sua resposta visualmente usando o seguinte formato Exato:\n\n**ANÁLISE DO SEU PRATO:**\n- [Alimento 1] (Aprox. [X]g)\n- [Alimento 2] (Aprox. [X]g)\n\n**🔍 MACROS ESTIMADOS TOTAIS:**\n🔥 Calorias: **[X] kcal**\n🍗 Proteínas: **[X]g**\n🥖 Carboidratos: **[X]g**\n🥑 Gorduras: **[X]g**\n\n💡 **Dica do Nutrik:** [Dica amigável e técnica sobre a refeição ou como melhorá-la].\n\nPRIORIZE a legenda/descrição enviada pelo usuário como o campo 'description' no JSON. DEPOIS de todo esse texto, você DEVE terminar com um bloco JSON exato: ```json {\"calories\": 0, \"protein\": 0, \"carbs\": 0, \"fat\": 0, \"description\": \"legenda do usuario\"} ```" }]
-                },
-                {
-                    role: "model",
-                    parts: [{ text: "Entendido! Como Nutrik.IA, sempre usarei o template rígido de **ANÁLISE DO SEU PRATO** detalhando gramas, seguido pelos **MACROS ESTIMADOS TOTAIS**, a **Dica do Nutrik** e, ao extremo final invisível, o bloco JSON." }]
-                }
-            );
-        } else {
-            // FLUXO DE TEXTO PURO (CHAT): Apenas bate-papo, proibido enviar JSON
-            contents.push(
-                {
-                    role: "user",
-                    parts: [{ text: "Você é o Nutrik.IA, um expert nutricional e amigo do usuário. O usuário está tirando uma dúvida geral sobre alimentos, rotina ou nutrição, e não enviou uma foto de uma refeição para ser registrada.\nResponda amigavelmente. **PROIBIDO GERAR BLOCOS DE CÓDIGO JSON**. Apenas converse e tire as dúvidas como um bom mentor, de forma direta!" }]
-                },
-                {
-                    role: "model",
-                    parts: [{ text: "Perfeito! Como não recebi imagem, vou apenas bater um papo amigável sobre nutrição e tirar as dúvidas, SEM GERAR nenhum bloco JSON no final para não poluir o banco de dados. Como posso ajudar?" }]
-                }
-            );
-        }
+        // FLUXO UNIFICADO (TEXTO E IMAGEM): O cérebro da IA gerencia a intenção
+        let unifiedPrompt = `Você é o Nutrik.IA, um expert nutricional e amigo parceiro do usuário.
+
+REGRA DE INTENÇÃO (CRÍTICA):
+1. INTENÇÃO DE CONSUMO: Se o usuário enviou uma imagem de PRATO/COMIDA, OU se o relato em TEXTO indicar que ele COMEU, INGERIU ou quer REGISTRAR uma refeição (ex: "comi um pão", "almocei arroz com feijão", "adicione no meu diário"), você DEVE obrigatoriamente realizar o cálculo estimado das gramas e macronutrientes do prato/refeição.
+Estruture a resposta EXATAMENTE assim:
+**ANÁLISE DO SEU PRATO:**
+- [Alimento 1] (Aprox. [X]g)
+- [Alimento 2] (Aprox. [X]g)
+
+**🔍 MACROS ESTIMADOS TOTAIS:**
+🔥 Calorias: **[X] kcal**
+🍗 Proteínas: **[X]g**
+🥖 Carboidratos: **[X]g**
+🥑 Gorduras: **[X]g**
+
+💡 **Dica do Nutrik:** [Sua dica]
+
+E, OBRIGATORIAMENTE, no final invisível da string, anexe um bloco JSON exato e perfeitamente formatado (não coloque vírgula extra no fim):
+\`\`\`json
+{"calories": 0, "protein": 0, "carbs": 0, "fat": 0, "description": "legenda ou nome principal do alimento consumido"}
+\`\`\`
+
+2. INTENÇÃO DE DÚVIDA: Se o usuário APENAS fez uma pergunta genérica, pediu dicas ou perguntou calorias TÉCNICAS sobre algo que ELE NÃO COMEU (ex: "quantas calorias tem um snickers?", "o que comer no café?"), VOCÊ ESTÁ ESTRITAMENTE PROIBIDO de gerar o bloco JSON no final. Apenas converse amigavelmente, responda à dúvida e o incentive. Nunca gere JSON em dúvidas genéricas.`;
+
+        contents.push(
+            {
+                role: "user",
+                parts: [{ text: unifiedPrompt }]
+            },
+            {
+                role: "model",
+                parts: [{ text: "Entendido! Como Nutrik.IA, serei humano para discernir a intenção. Só gerarei o formato 'Análise do Prato' junto com os 'Macros Totais' e o bendito bloco secreto JSON se eu detectar que a pessoa EFETIVAMENTE comeu/ingeriu ou quer registrar essa refeição (via foto ou texto). Caso contrário, serei apenas um mentor tirando a dúvida sem gerar código de banco de dados." }]
+            }
+        );
 
 
         if (history && Array.isArray(history)) {
