@@ -289,13 +289,21 @@
                 if (meals.length > 0) {
                     listContainer.innerHTML = meals.map(m => `
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
-                            <div style="display: flex; flex-direction: column;">
-                                <span style="font-size: 14px; font-weight: 700; color: #000;">${m.description || 'Refeição'}</span>
+                            <div style="display: flex; flex-direction: column; max-width: 65%;">
+                                <span style="font-size: 14px; font-weight: 700; color: #000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${m.description || 'Refeição'}</span>
                                 <span style="font-size: 11px; color: #64748b;">${new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
-                            <span style="font-weight: 800; color: #000; font-size: 14px;">+${m.calories} <small style="font-size: 9px; opacity: 0.6;">kcal</small></span>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <span style="font-weight: 800; color: #000; font-size: 14px;">+${m.calories} <small style="font-size: 9px; opacity: 0.6;">kcal</small></span>
+                                <button onclick="deleteMeal('${m.id}')" style="background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #ef4444; padding: 4px; border-radius: 4px;" title="Excluir refeição">
+                                    <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                                </button>
+                            </div>
                         </div>
                     `).join('');
+
+                    // Renderizar os ícones de lixeira recém-criados
+                    setTimeout(() => lucide.createIcons(), 50);
                 } else {
                     listContainer.innerHTML = '<p style="font-size: 13px; color: #999; text-align: center; padding: 10px;">Ainda não detectamos fotos de hoje.</p>';
                 }
@@ -474,6 +482,35 @@
         }
 
         initDashboard();
+
+        // Expõe a função para ser chamada pelo clique no botão (onclick injetado no HTML)
+        window.deleteMeal = async function (mealId) {
+            if (!confirm('Você tem certeza que deseja excluir esta refeição? Essa ação não pode ser desfeita e os macros voltarão para o cálculo.')) {
+                return;
+            }
+
+            const supabase = window.supabaseClient;
+            if (!supabase) return;
+
+            // Deletar a refeição
+            const { error } = await supabase.from('meals').delete().eq('id', mealId);
+
+            if (error) {
+                alert('Erro ao tentar excluir a refeição. Tente novamente.');
+                console.error(error);
+                return;
+            }
+
+            // Recuperar quem é o usuário e a meta atual pra poder atualizar a interface na hora
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+            const userId = session.user.id;
+            const targetCals = document.getElementById('target-cals').textContent || 2000;
+            const selectedDateStr = document.getElementById('date-filter').value;
+
+            // Recarregar os gráficos pra pessoa ver o progresso voltando pra trás
+            await refreshDailyMacros(supabase, userId, targetCals, selectedDateStr);
+        };
     </script>
 </body>
 
