@@ -70,6 +70,58 @@
             border: 1.5px solid #000;
             margin-bottom: 12px;
         }
+
+        .premium-locked {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .premium-locked > *:not(.lock-overlay) {
+            filter: blur(6px);
+            opacity: 0.6;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .lock-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.5);
+            z-index: 10;
+            text-align: center;
+            border-radius: 20px;
+        }
+
+        .lock-overlay .icon-bg {
+            background: linear-gradient(135deg, #000 0%, #333 100%);
+            width: 60px; height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .lock-btn {
+            background: var(--primary);
+            color: #000;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-weight: 800;
+            text-decoration: none;
+            margin-top: 16px;
+            transition: transform 0.2s;
+            border: 1.5px solid #000;
+        }
+        
+        .lock-btn:hover {
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 
@@ -102,7 +154,7 @@
             <i data-lucide="trending-up" style="width: 40px; height: 40px; color: var(--primary);"></i>
         </div>
 
-        <div class="card">
+        <div class="card" id="resumo-hoje-card">
             <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
                 <i data-lucide="activity" style="color: var(--primary);"></i> Resumo de Hoje
             </h3>
@@ -173,7 +225,7 @@
             </div>
         </div>
 
-        <div class="card card-full">
+        <div class="card card-full" id="evolucao-card">
             <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
                 <i data-lucide="line-chart" style="color: var(--primary);"></i> Sua Evolução
             </h3>
@@ -321,6 +373,28 @@
 
             await refreshDailyMacros(supabase, userId, targetCals);
             await refreshWeight(supabase, userId);
+
+            // Bloqueio Premium
+            const isPremium = profile?.plan === 'premium';
+            if (!isPremium) {
+                const lockHtml = `
+                    <div class="lock-overlay">
+                        <div class="icon-bg">
+                            <i data-lucide="lock" style="color: white; width: 32px; height: 32px;"></i>
+                        </div>
+                        <h3 style="font-family: 'Outfit', sans-serif; font-size: 20px; margin-bottom: 8px;">Recurso Premium</h3>
+                        <p style="font-size: 14px; color: #666; max-width: 80%;">Descubra seus macros diários, calorias restantes e acompanhe sua evolução de forma inteligente.</p>
+                        <a href="plans.html" class="lock-btn">Desbloquear Premium</a>
+                    </div>
+                `;
+                
+                document.getElementById('resumo-hoje-card').classList.add('premium-locked');
+                document.getElementById('resumo-hoje-card').insertAdjacentHTML('beforeend', lockHtml);
+
+                document.getElementById('evolucao-card').classList.add('premium-locked');
+                document.getElementById('evolucao-card').insertAdjacentHTML('beforeend', lockHtml);
+                setTimeout(() => lucide.createIcons(), 100);
+            }
 
             document.getElementById('save-weight').onclick = async () => {
                 const wInput = document.getElementById('weight-now');
