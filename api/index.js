@@ -115,6 +115,38 @@ app.post('/api/checkout-session', async (req, res) => {
     }
 });
 
+// Endpoint do Portal do Cliente (Para Cancelar/Alterar Assinatura)
+app.post('/api/create-portal-session', async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ error: "Email obrigatório." });
+
+        // Encontrar o cliente na Stripe pelo email
+        const customers = await stripe.customers.search({
+            query: `email:'${email}'`,
+            limit: 1
+        });
+
+        if (!customers.data || customers.data.length === 0) {
+            return res.status(404).json({ error: "Cliente não encontrado na Stripe." });
+        }
+
+        const customerId = customers.data[0].id;
+        const origin = req.headers.origin || 'https://nutrik-ia.vercel.app';
+
+        // Criar a sessão do Portal
+        const portalSession = await stripe.billingPortal.sessions.create({
+            customer: customerId,
+            return_url: `${origin}/dashboard.html`,
+        });
+
+        res.json({ url: portalSession.url });
+    } catch (error) {
+        console.error("Erro ao criar Stripe Portal Session:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Middleware para validar chave de API
 const validateApiKey = (req, res, next) => {
     if (!GEMINI_API_KEY) {

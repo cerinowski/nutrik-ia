@@ -139,6 +139,10 @@
                 style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px;">
                 <i data-lucide="check-circle" style="width: 20px; height: 20px;"></i> Salvar Alterações
             </button>
+            <button type="button" id="manage-billing-btn" class="btn-outline"
+                style="width: 100%; display: none; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; padding: 14px; border-radius: 12px; border: 1.5px solid #000; background: transparent; cursor: pointer; font-weight: 700;">
+                <i data-lucide="credit-card" style="width: 20px; height: 20px;"></i> Gerenciar Assinatura
+            </button>
         </form>
     </div>
 
@@ -181,6 +185,32 @@
                 document.getElementById('height').value = profile.height || '';
                 selectedGoal = profile.goal || 'maintain';
                 updateGoalUI();
+
+                // Show Manage Billing button if user is premium
+                if (profile.plan === 'premium') {
+                    const billingBtn = document.getElementById('manage-billing-btn');
+                    billingBtn.style.display = 'flex';
+                    billingBtn.onclick = async () => {
+                        billingBtn.innerHTML = '<i data-lucide="loader-2" style="width:20px;height:20px;animation:spin 1s linear infinite"></i> Aguarde...';
+                        try {
+                            const res = await fetch('/api/create-portal-session', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ email: session.user.email })
+                            });
+                            const data = await res.json();
+                            if (data.url) {
+                                window.location.href = data.url;
+                            } else {
+                                alert(data.error || 'Erro ao abrir painel.');
+                                billingBtn.innerHTML = '<i data-lucide="credit-card" style="width: 20px; height: 20px;"></i> Gerenciar Assinatura';
+                            }
+                        } catch (err) {
+                            alert('Erro de conexão ao portal.');
+                            billingBtn.innerHTML = '<i data-lucide="credit-card" style="width: 20px; height: 20px;"></i> Gerenciar Assinatura';
+                        }
+                    };
+                }
             }
 
             document.getElementById('profile-form').onsubmit = async (e) => {
