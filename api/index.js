@@ -16,7 +16,7 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 
 // Webhook da Stripe precisa do body original sem parse pra checar a assinatura
-app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+app.post(['/api/webhook', '/webhook/stripe'], express.raw({ type: 'application/json' }), async (req, res) => {
     const sig = req.headers['stripe-signature'];
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -32,7 +32,7 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, 
     // Handle the checkout.session.completed event
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object;
-        const userId = session.metadata.userId;
+        const userId = session.metadata?.userId || session.client_reference_id;
 
         if (userId) {
             console.log(`💰 Pagamento recebido para userId: ${userId}. Atualizando plano...`);
@@ -69,6 +69,7 @@ app.post('/api/checkout-session', async (req, res) => {
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             customer_email: email, // Auto-preenche o email do usuario
+            client_reference_id: userId,
             line_items: [
                 {
                     price: 'price_1T7GfOFobyRkpryqz29bCT7W', // O ID do Produto na Stripe
@@ -450,56 +451,6 @@ E, OBRIGATORIAMENTE, no final invisível da string, anexe um bloco JSON exato e 
         console.error('Critical Chat Error:', error);
         res.status(500).json({ error: 'Erro técnico de IA', details: error.message });
     }
-});
-
-// Stripe Checkout
-app.post('/api/checkout-session', async (req, res) => {
-    try {
-        const { email, userId } = req.body;
-        const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
-            customer_email: email,
-            client_reference_id: userId,
-            line_items: [{
-                price_data: {
-                    currency: 'brl',
-                    product_data: { name: 'Nutrik.IA Premium' },
-                    unit_amount: 5700,
-                    recurring: { interval: 'month' }
-                },
-                quantity: 1,
-            }],
-            mode: 'subscription',
-            success_url: `${req.protocol}://${req.get('host')}/chat.html?success=true`,
-            cancel_url: `${req.protocol}://${req.get('host')}/plans.html?canceled=true`,
-        });
-        res.json({ url: session.url });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Stripe Webhook
-app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    let event;
-    try {
-        event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-    } catch (err) {
-        return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-
-    if (event.type === 'checkout.session.completed') {
-        const session = event.data.object;
-        await supabaseAdmin.from('profiles').upsert({
-            id: session.client_reference_id,
-            email: session.customer_details?.email,
-            plan: 'premium',
-            credits: 9999,
-            updated_at: new Date().toISOString()
-        });
-    }
-    res.status(200).end();
 });
 
 if (require.main === module) {
