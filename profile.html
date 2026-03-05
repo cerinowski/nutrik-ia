@@ -193,19 +193,28 @@
                     id: session.user.id,
                     email: session.user.email,
                     full_name: document.getElementById('full_name').value,
-                    age: parseInt(document.getElementById('age').value),
+                    age: parseInt(document.getElementById('age').value) || null,
                     gender: document.getElementById('gender').value,
-                    current_weight: parseFloat(document.getElementById('current_weight').value),
-                    target_weight: parseFloat(document.getElementById('target_weight').value),
-                    height: parseInt(document.getElementById('height').value),
+                    current_weight: parseFloat(document.getElementById('current_weight').value) || null,
+                    target_weight: parseFloat(document.getElementById('target_weight').value) || null,
+                    height: parseInt(document.getElementById('height').value) || null,
                     goal: selectedGoal,
                     updated_at: new Date().toISOString()
                 };
 
-                const { error } = await supabase.from('profiles').upsert(pData);
+                // Atualiza perfil usando update ao invés de upsert para não resetar campos implícitos
+                const { error } = await supabase.from('profiles').update(pData).eq('id', session.user.id);
 
                 if (!error) {
-                    alert('Sua meta foi salva com sucesso! 🚀');
+                    // Também salva no histórico de peso para atualizar o gráfico no dashboard
+                    if (pData.current_weight) {
+                        await supabase.from('weight_history').insert({
+                            user_id: session.user.id,
+                            weight: pData.current_weight
+                        });
+                    }
+
+                    alert('Seu perfil foi salvo com sucesso! 🚀');
                     window.location.href = 'dashboard.html';
                 } else {
                     console.error('Erro Supabase:', error);
