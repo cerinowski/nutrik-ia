@@ -235,15 +235,18 @@
                 style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
                 <i data-lucide="save" style="width: 18px; height: 18px;"></i> Salvar Peso
             </button>
-            <div style="margin-top: 20px; display: flex; justify-content: space-between;">
+            <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: baseline;">
                 <div>
                     <div class="stat-label">Inicial</div>
                     <div class="stat-value" id="weight-start">--</div>
                 </div>
+                <div style="text-align: center;">
+                    <div class="stat-label" style="color: var(--primary);">Atual</div>
+                    <div class="stat-value" id="weight-current" style="font-size: 28px;">--</div>
+                </div>
                 <div style="text-align: right;">
                     <div class="stat-label">Meta</div>
-                    <div class="stat-value" id="weight-target"
-                        style="color: #4CAF50; font-size: 24px; font-weight: 800;">--</div>
+                    <div class="stat-value" id="weight-target" style="color: #4CAF50; font-size: 24px;">--</div>
                 </div>
             </div>
         </div>
@@ -413,9 +416,11 @@
             if (profile) {
                 document.getElementById('user-greeting').textContent = `Olá, ${profile.full_name?.split(' ')[0] || 'Campeão'}!`;
 
-                // Mostrar a meta de peso salvada
+                // Mostrar metas e peso atual salvos
                 const tWeight = parseFloat(profile.target_weight);
-                document.getElementById('weight-target').textContent = tWeight ? `${tWeight}kg` : '--kg';
+                const cWeight = parseFloat(profile.current_weight);
+                document.getElementById('weight-target').textContent = tWeight ? `${tWeight}kg` : '--';
+                document.getElementById('weight-current').textContent = cWeight ? `${cWeight}kg` : '--';
 
                 targetCals = calculateTDEE({
                     weight: profile.current_weight,
@@ -477,6 +482,10 @@
                     await supabase.from('profiles').update({ current_weight: w }).eq('id', userId);
                     alert('Peso registrado! Meta de calorias atualizada.');
                     wInput.value = '';
+
+                    // Atualiza a UI imediatamente
+                    document.getElementById('weight-current').textContent = `${w}kg`;
+
                     // Recalcular com novo peso
                     const updatedTdee = calculateTDEE({
                         weight: w,
