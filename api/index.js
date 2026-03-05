@@ -48,6 +48,30 @@ app.post(['/api/webhook', '/webhook/stripe'], express.raw({ type: 'application/j
                 console.log("✅ Plano Premium ativado com sucesso para:", userId);
             }
         }
+    } else if (event.type === 'charge.refunded' || event.type === 'customer.subscription.deleted') {
+        const obj = event.data.object;
+        let email = obj.receipt_email || obj.billing_details?.email;
+
+        let customerId = obj.customer;
+        if (!email && customerId) {
+            try {
+                if (typeof customerId !== 'string') customerId = customerId.id;
+                const customer = await stripe.customers.retrieve(customerId);
+                email = customer.email;
+            } catch (err) {
+                console.error("⚠️ Erro ao buscar email do customer na Stripe:", err.message);
+            }
+        }
+
+        if (email) {
+            console.log(`📉 Cancelamento ou Reembolso detectado para: ${email}. Retornando perfil para free...`);
+            await supabaseAdmin
+                .from('profiles')
+                .update({ plan: 'free', credits: 50 })
+                .eq('email', email);
+        } else {
+            console.warn(`⚠️ Não foi possível achar o email na Stripe para resetar a conta:`, obj.id);
+        }
     }
 
     res.json({ received: true });
