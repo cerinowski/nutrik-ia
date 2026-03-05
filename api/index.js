@@ -39,7 +39,7 @@ app.post(['/api/webhook', '/webhook/stripe'], express.raw({ type: 'application/j
             // Update Supabase
             const { error } = await supabaseAdmin
                 .from('profiles')
-                .update({ plan: 'premium', credits: null }) // Usando credits: null ou um valor alto se preferir, a logica frontend já verifica o plano
+                .update({ plan: 'premium', credits: 99999 }) // O Supabase não aceita null nesta coluna
                 .eq('id', userId);
 
             if (error) {
