@@ -198,6 +198,7 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
         const userId = req.body.userId || req.headers['x-user-id'];
         let liveProfile = profile || {};
         let consumedToday = 0;
+        let remainingToday = 0;
 
         // Fetch fresh profile data directly from Supabase to guarantee we have the latest weight/goal
         if (userId) {
@@ -264,7 +265,7 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
             if (liveProfile.goal === 'lose') translatedGoal = 'Emagrecer';
             if (liveProfile.goal === 'gain') translatedGoal = 'Ganhar Massa';
 
-            const remainingToday = dailyGoal > 0 ? dailyGoal - consumedToday : 0;
+            remainingToday = dailyGoal > 0 ? dailyGoal - consumedToday : 0;
 
             profileContext = `\n\n[DADOS ATUALIZADOS DO PACIENTE]\n` +
                 `- Nome: ${liveProfile.full_name || liveProfile.name || 'Não informado'}\n` +
@@ -278,7 +279,7 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
                 `- Sexo: ${gender === 'M' ? 'Masculino' : 'Feminino'}\n` +
                 `- Altura: ${liveProfile.height || 'Não informado'} cm\n` +
                 `- Idade: ${liveProfile.age || 'Não informado'} anos\n` +
-                `\nINSTRUÇÃO CRÍTICA PARA A IA: Ao conversar, se o usuário perguntar o quanto AINDA PODE COMER hoje, ou quantas calorias restam, use EXATAMENTE a linha de 'RESTANTE PARA HOJE'. Se ele perguntar o quanto consumiu até agora, responda a linha de 'JÁ CONSUMIDO HOJE'. Use OS VALORES ACIMA COMO BASE VERDADEIRA. Exemplo: 'Você consumiu X, ainda lhe restam Y calorias.' Nunca use dados não listados acima.`;
+                `\nINSTRUÇÃO CRÍTICA PARA A IA: IGNORE COMPLETAMENTE OS VALORES DE CALORIAS DITOS NO HISTÓRICO DO CHAT. O usuário pode ter excluído uma refeição. Use EXATAMENTE a linha de 'RESTANTE PARA HOJE' acima como o valor real de agora. NUNCA some as notas do histórico.`;
         }
 
         let contents = [];
@@ -345,7 +346,13 @@ E, OBRIGATORIAMENTE, no final invisível da string, anexe um bloco JSON exato e 
         }
 
         let currentParts = [];
-        if (message) currentParts.push({ text: message });
+        let reminderMsg = `\n\n[ATENÇÃO IA: IGNORE o cálculo calórico do histórico passado. Agora mesmo, o Banco de Dados afirma que o consumido total de hoje caiu para exatos ${consumedToday} kcal (Restam ${remainingToday} kcal). Baseie-se apenas nisto.]`;
+
+        if (message) {
+            currentParts.push({ text: message + reminderMsg });
+        } else {
+            currentParts.push({ text: "Analise esta imagem." + reminderMsg });
+        }
 
         if (imageBase64) {
             const hasDataUri = imageBase64.startsWith("data:");
