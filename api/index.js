@@ -212,10 +212,10 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
                     liveProfile = { ...liveProfile, ...dbProfile };
                 }
 
-                // Buscar refeições de hoje (ajustando fuso horário para Brasil UTC-3)
-                const now = new Date();
-                now.setHours(now.getHours() - 3);
-                const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+                // Buscar refeições de hoje no fuso horário do Brasil (America/Sao_Paulo)
+                const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' });
+                const brDateStr = formatter.format(new Date()); // Formato YYYY-MM-DD no Brasil
+                const startOfDay = new Date(`${brDateStr}T00:00:00-03:00`).toISOString();
 
                 const { data: mealsData, error: mealsError } = await supabaseAdmin
                     .from('meals')
