@@ -114,6 +114,18 @@
                     </div>
                 </div>
 
+                <div class="form-group" style="margin-bottom: 24px;">
+                    <label>Nível de Atividade</label>
+                    <select id="activity_level"
+                        style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #000;" required>
+                        <option value="sedentary">Sedentário (Pouco/nenhum)</option>
+                        <option value="light" selected>Leve (1 a 3 dias/sem)</option>
+                        <option value="moderate">Moderado (3 a 5 dias)</option>
+                        <option value="active">Ativo (6 a 7 dias)</option>
+                        <option value="very_active">Muito Ativo (Atleta/2x dia)</option>
+                    </select>
+                </div>
+
                 <label style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 12px;">Seu
                     Objetivo</label>
                 <div class="grid-2" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom: 24px;">
@@ -181,6 +193,7 @@
                     gender: document.getElementById('gender').value,
                     current_weight: parseFloat(document.getElementById('current_weight').value),
                     height: parseInt(document.getElementById('height').value),
+                    activity_level: document.getElementById('activity_level').value,
                     goal: selectedGoal,
                     onboarding_completed: true,
                     updated_at: new Date().toISOString()

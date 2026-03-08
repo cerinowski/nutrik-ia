@@ -251,8 +251,16 @@ app.post('/api/chat', validateApiKey, async (req, res) => {
                     tmb = (10 * weight) + (6.25 * height) - (5 * age) - 161;
                 }
 
-                // Add Activity Factor (Estimating lightly active as baseline: 1.375)
-                tmb = Math.round(tmb * 1.375);
+                // Add Activity Factor
+                const multipliers = {
+                    'sedentary': 1.2,
+                    'light': 1.375,
+                    'moderate': 1.55,
+                    'active': 1.725,
+                    'very_active': 1.9
+                };
+                const activityLevel = liveProfile.activity_level || 'light';
+                tmb = Math.round(tmb * (multipliers[activityLevel] || 1.375));
 
                 // Calculate Daily Goal based on Objective
                 const goal = liveProfile.goal || 'maintain';

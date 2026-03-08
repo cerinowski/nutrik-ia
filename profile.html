@@ -115,9 +115,22 @@
                     <input type="number" id="target_weight" step="0.1" required>
                 </div>
             </div>
-            <div class="form-group">
-                <label>Altura (cm)</label>
-                <input type="number" id="height" required>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Altura (cm)</label>
+                    <input type="number" id="height" required>
+                </div>
+                <div class="form-group">
+                    <label>Nível de Atividade</label>
+                    <select id="activity_level"
+                        style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #000;" required>
+                        <option value="sedentary">Sedentário (Sem exercício)</option>
+                        <option value="light">Leve (1 a 3 dias/sem)</option>
+                        <option value="moderate">Moderado (3 a 5 dias/sem)</option>
+                        <option value="active">Ativo (6 a 7 dias/sem)</option>
+                        <option value="very_active">Muito Ativo (Atleta/2x dia)</option>
+                    </select>
+                </div>
             </div>
             <label style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 10px;">Objetivo</label>
             <div id="goal-container"
@@ -183,6 +196,7 @@
                 document.getElementById('current_weight').value = profile.current_weight || '';
                 document.getElementById('target_weight').value = profile.target_weight || '';
                 document.getElementById('height').value = profile.height || '';
+                document.getElementById('activity_level').value = profile.activity_level || 'light';
                 selectedGoal = profile.goal || 'maintain';
                 updateGoalUI();
 
@@ -228,6 +242,7 @@
                     current_weight: parseFloat(document.getElementById('current_weight').value) || null,
                     target_weight: parseFloat(document.getElementById('target_weight').value) || null,
                     height: parseInt(document.getElementById('height').value) || null,
+                    activity_level: document.getElementById('activity_level').value,
                     goal: selectedGoal,
                     updated_at: new Date().toISOString()
                 };

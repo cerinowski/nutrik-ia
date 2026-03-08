@@ -403,7 +403,16 @@
                 if (!p.weight || !p.height || !p.age) return 2000;
                 let bmr = (10 * p.weight) + (6.25 * p.height) - (5 * p.age);
                 bmr = p.gender === 'male' ? bmr + 5 : bmr - 161;
-                let tdee = bmr * 1.375; // Fator de atividade leve/moderado
+
+                const multipliers = {
+                    'sedentary': 1.2,
+                    'light': 1.375,
+                    'moderate': 1.55,
+                    'active': 1.725,
+                    'very_active': 1.9
+                };
+                let tdee = bmr * (multipliers[p.activity_level] || 1.375);
+
                 if (p.goal === 'lose') return Math.round(tdee - 500);
                 if (p.goal === 'gain') return Math.round(tdee + 400);
                 return Math.round(tdee);
@@ -427,6 +436,7 @@
                     height: profile.height,
                     age: profile.age,
                     gender: profile.gender,
+                    activity_level: profile.activity_level,
                     goal: profile.goal
                 });
                 document.getElementById('target-cals').textContent = targetCals;
@@ -492,6 +502,7 @@
                         height: profile.height,
                         age: profile.age,
                         gender: profile.gender,
+                        activity_level: profile.activity_level,
                         goal: profile.goal
                     });
                     document.getElementById('target-cals').textContent = updatedTdee;
