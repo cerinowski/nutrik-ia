@@ -60,9 +60,9 @@
                             </div>
                             <div>
                                 <strong style="display: block; font-size: 14px; margin-bottom: 4px;">Consultoria Diária
-                                    (Grátis)</strong>
+                                    (1 Crédito)</strong>
                                 <span style="font-size: 13px; color: #555;">Tire dúvidas ilimitadas, peça dicas de
-                                    treino ou calcule sua Taxa Metabólica de forma gratuita.</span>
+                                    treino ou calcule sua Taxa Metabólica de forma ágil (custa 1 crédito).</span>
                             </div>
                         </div>
 
@@ -171,28 +171,7 @@
                 }
             }
 
-            // Deduct credits for AI responses containing images ONLY
-            if (!isUser && isImageAnalysis) {
-                const isPremium = window.currentUser?.plan === 'premium';
-
-                if (!isPremium) {
-                    // Deduct locally for instant UI update
-                    credits -= 5;
-                    if (credits < 0) credits = 0;
-                    document.getElementById('credit-count').textContent = credits;
-
-                    // Update Supabase Database
-                    if (typeof window.currentUser !== 'undefined' && window.currentUser) {
-                        window.supabaseClient
-                            .from('profiles')
-                            .update({ credits: credits })
-                            .eq('id', window.currentUser.id)
-                            .then(({ error }) => {
-                                if (error) console.error("Erro ao atualizar os créditos no banco:", error);
-                            });
-                    }
-                }
-            }
+            // O desconto de créditos foi movido exclusivamente para o momento da resposta (handleSend)
 
             msgDiv.innerHTML = `
                 ${bubbleHtml}
@@ -269,9 +248,13 @@
             if (!text && !imageToSend) return;
 
             const isPremium = window.currentUser?.plan === 'premium';
+            const cost = imageToSend ? 5 : 1;
 
-            if (imageToSend && credits < 5 && !isPremium) {
-                alert("Você não tem créditos suficientes para enviar imagens (custa 5 créditos). Assine o Premium!");
+            if (credits < cost && !isPremium) {
+                const msg = imageToSend
+                    ? "Você não tem créditos suficientes para análise da foto (custa 5 créditos). Assine o Premium!"
+                    : "Você não tem créditos suficientes para enviar mensagem (custa 1 crédito). Assine o Premium!";
+                alert(msg);
                 return;
             }
 
@@ -373,17 +356,15 @@
                 }
 
 
-                // Deduct credits if image
-                if (!!imageToSend) {
-                    const isPremium = window.currentUser?.plan === 'premium';
-                    if (!isPremium) {
-                        credits -= 5;
-                        if (credits < 0) credits = 0;
-                        document.getElementById('credit-count').textContent = credits;
-                        if (typeof window.currentUser !== 'undefined' && window.currentUser) {
-                            window.supabaseClient.from('profiles').update({ credits: credits }).eq('id', window.currentUser.id)
-                                .then(({ error }) => { if (error) console.error("Credit update err:", error) });
-                        }
+                // 🚀 Deduct credits based on action
+                if (!window.currentUser || window.currentUser.plan !== 'premium') {
+                    const cost = imageToSend ? 5 : 1;
+                    credits -= cost;
+                    if (credits < 0) credits = 0;
+                    document.getElementById('credit-count').textContent = credits;
+                    if (typeof window.currentUser !== 'undefined' && window.currentUser) {
+                        window.supabaseClient.from('profiles').update({ credits: credits }).eq('id', window.currentUser.id)
+                            .then(({ error }) => { if (error) console.error("Credit update err:", error) });
                     }
                 }
 
