@@ -90,13 +90,21 @@
 
         const supabase = window.supabaseClient;
 
-        // Listen for auth changes to handle redirects more reliably across devices
+        // Detectar se veio do email de recuperação antes das mudanças de estado
+        if (window.location.hash && window.location.hash.includes('type=recovery')) {
+          currentMode = 'RESET';
+          updateUI();
+        }
+
         // Listen for auth changes
         supabase.auth.onAuthStateChange((event, session) => {
+          console.log('Auth Event:', event);
+
           if (event === 'PASSWORD_RECOVERY') {
             currentMode = 'RESET';
             updateUI();
-          } else if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+          } else if (session && currentMode !== 'RESET' && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+            formTitle.textContent = 'Sessão Ativa';
             // ... (keep existing session handling)
             formTitle.textContent = 'Sessão Ativa';
             formDesc.textContent = 'Bem-vindo de volta! Clique abaixo para acessar a IA.';
