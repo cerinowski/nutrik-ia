@@ -186,12 +186,17 @@
         authError.style.display = 'none';
         authSuccess.style.display = 'none';
 
+        const emailInput = document.getElementById('email');
+        const senhaInput = document.getElementById('senha');
+
         switch (currentMode) {
           case 'LOGIN':
             formTitle.textContent = 'Entrar';
             formDesc.textContent = 'Entre com seu email e senha para acessar sua conta';
-            document.getElementById('email').parentElement.style.display = 'block';
+            emailInput.parentElement.style.display = 'block';
+            emailInput.required = true;
             pwdGroup.style.display = 'block';
+            senhaInput.required = true;
             pwdGroup.querySelector('label').textContent = 'Senha';
             document.getElementById('forgot-pwd').parentElement.style.display = 'block';
             submitBtn.textContent = 'Entrar';
@@ -204,8 +209,10 @@
           case 'SIGNUP':
             formTitle.textContent = 'Criar Conta';
             formDesc.textContent = 'Crie sua conta para começar a usar o Nutrik.IA';
-            document.getElementById('email').parentElement.style.display = 'block';
+            emailInput.parentElement.style.display = 'block';
+            emailInput.required = true;
             pwdGroup.style.display = 'block';
+            senhaInput.required = true;
             pwdGroup.querySelector('label').textContent = 'Senha';
             document.getElementById('forgot-pwd').parentElement.style.display = 'none';
             submitBtn.textContent = 'Cadastrar';
@@ -218,8 +225,10 @@
           case 'FORGOT':
             formTitle.textContent = 'Recuperar Senha';
             formDesc.textContent = 'Digite seu email para receber um link de redefinição';
-            document.getElementById('email').parentElement.style.display = 'block';
+            emailInput.parentElement.style.display = 'block';
+            emailInput.required = true;
             pwdGroup.style.display = 'none';
+            senhaInput.required = false;
             submitBtn.textContent = 'Enviar Link';
             toggleText.style.display = 'none';
             toggleMode.style.display = 'none';
@@ -228,8 +237,10 @@
           case 'RESET':
             formTitle.textContent = 'Nova Senha';
             formDesc.textContent = 'Digite sua nova senha de acesso abaixo';
-            document.getElementById('email').parentElement.style.display = 'none';
+            emailInput.parentElement.style.display = 'none';
+            emailInput.required = false;
             pwdGroup.style.display = 'block';
+            senhaInput.required = true;
             pwdGroup.querySelector('label').textContent = 'Nova Senha';
             document.getElementById('forgot-pwd').parentElement.style.display = 'none';
             submitBtn.textContent = 'Salvar Nova Senha';
