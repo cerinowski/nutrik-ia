@@ -36,9 +36,13 @@
           <input type="email" id="email" placeholder="seu@email.com" required>
         </div>
 
-        <div class="form-group">
+        <div class="form-group" id="pwd-group">
           <label for="senha">Senha</label>
           <input type="password" id="senha" required>
+          <div style="text-align: right; margin-top: 8px;">
+            <a href="#" id="forgot-pwd" style="font-size: 13px; color: #555; text-decoration: none;">Esqueci minha
+              senha</a>
+          </div>
         </div>
 
         <button type="submit" class="btn-primary" id="submit-btn" style="position: relative;">Entrar</button>
@@ -51,6 +55,11 @@
 
       <div class="login-footer">
         <span id="toggle-text">Não tem uma conta?</span> <a href="#" id="toggle-mode">Cadastre-se</a>
+        <div id="reset-back-container" style="display: none; margin-top: 12px;">
+          <a href="#" id="back-to-login"
+            style="font-size: 14px; color: #000; font-weight: 700; text-decoration: none;">&larr; Voltar para o
+            Login</a>
+        </div>
       </div>
     </div>
 
@@ -62,8 +71,15 @@
       const submitBtn = document.getElementById('submit-btn');
       const toggleText = document.getElementById('toggle-text');
       const toggleMode = document.getElementById('toggle-mode');
+      const forgotPwd = document.getElementById('forgot-pwd');
+      const backToLogin = document.getElementById('back-to-login');
+      const resetBackContainer = document.getElementById('reset-back-container');
+      const footerNormal = document.querySelector('.login-footer span').parentElement;
+      const pwdGroup = document.getElementById('pwd-group');
       const authError = document.getElementById('auth-error');
       const authSuccess = document.getElementById('auth-success');
+
+      let currentMode = 'LOGIN'; // 'LOGIN', 'SIGNUP', 'FORGOT', 'RESET'
 
       // Wait for the ES Module to expose supabaseClient to the window
       function initAuth() {
@@ -75,14 +91,19 @@
         const supabase = window.supabaseClient;
 
         // Listen for auth changes to handle redirects more reliably across devices
+        // Listen for auth changes
         supabase.auth.onAuthStateChange((event, session) => {
-          if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+          if (event === 'PASSWORD_RECOVERY') {
+            currentMode = 'RESET';
+            updateUI();
+          } else if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+            // ... (keep existing session handling)
             formTitle.textContent = 'Sessão Ativa';
             formDesc.textContent = 'Bem-vindo de volta! Clique abaixo para acessar a IA.';
             document.getElementById('email').parentElement.style.display = 'none';
-            document.getElementById('senha').parentElement.style.display = 'none';
+            pwdGroup.style.display = 'none';
             submitBtn.style.display = 'none';
-
+            // ... (keep redirect logic)
             let existingBtn = document.getElementById('go-chat-btn');
             if (!existingBtn) {
               existingBtn = document.createElement('a');
@@ -110,69 +131,140 @@
           authSuccess.style.display = 'none';
 
           try {
-            if (isLoginMode) {
+            if (currentMode === 'LOGIN') {
               const { data, error } = await supabase.auth.signInWithPassword({ email, password });
               if (error) throw error;
-
-              // Verificar se o perfil está completo
-              const { data: profile } = await supabase
-                .from('profiles')
-                .select('onboarding_completed')
-                .eq('id', data.user.id)
-                .single();
-
-              if (profile && profile.onboarding_completed) {
-                window.location.href = 'chat.html';
-              } else {
-                window.location.href = 'onboarding.html';
-              }
-            } else {
+              handleRedirect(data.user.id);
+            } else if (currentMode === 'SIGNUP') {
               const { data, error } = await supabase.auth.signUp({ email, password });
               if (error) throw error;
-
               if (data.session) {
                 window.location.href = 'onboarding.html';
               } else {
                 authSuccess.textContent = 'Conta criada! Confirme seu email ou faça login.';
                 authSuccess.style.display = 'block';
-                setTimeout(() => toggleMode.click(), 3000);
+                setTimeout(() => switchTo('LOGIN'), 3000);
               }
+            } else if (currentMode === 'FORGOT') {
+              const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: window.location.origin + '/index.html',
+              });
+              if (error) throw error;
+              authSuccess.textContent = 'Link de recuperação enviado para seu email!';
+              authSuccess.style.display = 'block';
+            } else if (currentMode === 'RESET') {
+              const { error } = await supabase.auth.updateUser({ password });
+              if (error) throw error;
+              authSuccess.textContent = 'Senha atualizada com sucesso! Verificando perfil...';
+              authSuccess.style.display = 'block';
+              const { data: { user } } = await supabase.auth.getUser();
+              handleRedirect(user.id);
             }
           } catch (err) {
             authError.textContent = err.message || 'Ocorreu um erro.';
             if (err.message.includes('Invalid login credentials')) {
               authError.textContent = 'Email ou senha inválidos.';
             }
-            if (err.message.includes('Password should be')) {
-              authError.textContent = 'A senha deve ter pelo menos 6 caracteres.';
-            }
             authError.style.display = 'block';
           } finally {
-            submitBtn.textContent = isLoginMode ? 'Entrar' : 'Cadastrar';
+            updateSubmitButtonText();
             submitBtn.disabled = false;
           }
         });
+
+        async function handleRedirect(userId) {
+          const { data: profile } = await supabase.from('profiles').select('onboarding_completed').eq('id', userId).single();
+          if (profile && profile.onboarding_completed) {
+            window.location.href = 'chat.html';
+          } else {
+            window.location.href = 'onboarding.html';
+          }
+        }
+      }
+
+      function updateUI() {
+        authError.style.display = 'none';
+        authSuccess.style.display = 'none';
+
+        switch (currentMode) {
+          case 'LOGIN':
+            formTitle.textContent = 'Entrar';
+            formDesc.textContent = 'Entre com seu email e senha para acessar sua conta';
+            document.getElementById('email').parentElement.style.display = 'block';
+            pwdGroup.style.display = 'block';
+            pwdGroup.querySelector('label').textContent = 'Senha';
+            document.getElementById('forgot-pwd').parentElement.style.display = 'block';
+            submitBtn.textContent = 'Entrar';
+            toggleText.style.display = 'inline';
+            toggleMode.style.display = 'inline';
+            toggleText.textContent = 'Não tem uma conta?';
+            toggleMode.textContent = 'Cadastre-se';
+            resetBackContainer.style.display = 'none';
+            break;
+          case 'SIGNUP':
+            formTitle.textContent = 'Criar Conta';
+            formDesc.textContent = 'Crie sua conta para começar a usar o Nutrik.IA';
+            document.getElementById('email').parentElement.style.display = 'block';
+            pwdGroup.style.display = 'block';
+            pwdGroup.querySelector('label').textContent = 'Senha';
+            document.getElementById('forgot-pwd').parentElement.style.display = 'none';
+            submitBtn.textContent = 'Cadastrar';
+            toggleText.style.display = 'inline';
+            toggleMode.style.display = 'inline';
+            toggleText.textContent = 'Já tem uma conta?';
+            toggleMode.textContent = 'Entrar';
+            resetBackContainer.style.display = 'none';
+            break;
+          case 'FORGOT':
+            formTitle.textContent = 'Recuperar Senha';
+            formDesc.textContent = 'Digite seu email para receber um link de redefinição';
+            document.getElementById('email').parentElement.style.display = 'block';
+            pwdGroup.style.display = 'none';
+            submitBtn.textContent = 'Enviar Link';
+            toggleText.style.display = 'none';
+            toggleMode.style.display = 'none';
+            resetBackContainer.style.display = 'block';
+            break;
+          case 'RESET':
+            formTitle.textContent = 'Nova Senha';
+            formDesc.textContent = 'Digite sua nova senha de acesso abaixo';
+            document.getElementById('email').parentElement.style.display = 'none';
+            pwdGroup.style.display = 'block';
+            pwdGroup.querySelector('label').textContent = 'Nova Senha';
+            document.getElementById('forgot-pwd').parentElement.style.display = 'none';
+            submitBtn.textContent = 'Salvar Nova Senha';
+            toggleText.style.display = 'none';
+            toggleMode.style.display = 'none';
+            resetBackContainer.style.display = 'none';
+            break;
+        }
+      }
+
+      function updateSubmitButtonText() {
+        if (currentMode === 'LOGIN') submitBtn.textContent = 'Entrar';
+        else if (currentMode === 'SIGNUP') submitBtn.textContent = 'Cadastrar';
+        else if (currentMode === 'FORGOT') submitBtn.textContent = 'Enviar Link';
+        else if (currentMode === 'RESET') submitBtn.textContent = 'Salvar Nova Senha';
+      }
+
+      function switchTo(mode) {
+        currentMode = mode;
+        updateUI();
       }
 
       toggleMode.addEventListener('click', (e) => {
         e.preventDefault();
-        isLoginMode = !isLoginMode;
-        authError.style.display = 'none';
-        authSuccess.style.display = 'none';
+        switchTo(currentMode === 'LOGIN' ? 'SIGNUP' : 'LOGIN');
+      });
 
-        if (isLoginMode) {
-          formTitle.textContent = 'Entrar';
-          formDesc.textContent = 'Entre com seu email e senha para acessar sua conta';
-          submitBtn.textContent = 'Entrar';
-          toggleText.textContent = 'Não tem uma conta?';
-          toggleMode.textContent = 'Cadastre-se';
-        } else {
-          formTitle.textContent = 'Criar Conta';
-          formDesc.textContent = 'Crie sua conta para começar a usar o Nutrik.IA';
-          submitBtn.textContent = 'Cadastrar';
-          toggleText.textContent = 'Já tem uma conta?';
-          toggleMode.textContent = 'Entrar';
-        }
+      forgotPwd.addEventListener('click', (e) => {
+        e.preventDefault();
+        switchTo('FORGOT');
+      });
+
+      backToLogin.addEventListener('click', (e) => {
+        e.preventDefault();
+        switchTo('LOGIN');
       });
 
       // Start initialization loop
