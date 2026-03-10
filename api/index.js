@@ -82,7 +82,7 @@ app.use(express.json({ limit: '50mb' }));
 
 app.post('/api/checkout-session', async (req, res) => {
     try {
-        const { email, userId } = req.body;
+        const { email, userId, offer } = req.body;
 
         if (!userId) {
             return res.status(400).json({ error: "userId obrigatório." });
@@ -90,9 +90,22 @@ app.post('/api/checkout-session', async (req, res) => {
 
         const origin = req.headers.origin || 'https://nutrik-ia.vercel.app'; // Fallback ajeitado caso origin venha vazio
 
-        const session = await stripe.checkout.sessions.create({
+        let discounts = [];
+        if (offer === 'OFERTA30') {
+            try {
+                // Busca o ID do código promocional ativo na Stripe pelo nome
+                const promoCodes = await stripe.promotionCodes.list({ code: 'OFERTA30', active: true, limit: 1 });
+                if (promoCodes.data.length > 0) {
+                    discounts = [{ promotion_code: promoCodes.data[0].id }];
+                }
+            } catch (err) {
+                console.error("Erro ao buscar promo code:", err);
+            }
+        }
+
+        const sessionConfig = {
             payment_method_types: ['card'],
-            customer_email: email, // Auto-preenche o email do usuario
+            customer_email: email,
             client_reference_id: userId,
             line_items: [
                 {
@@ -100,14 +113,20 @@ app.post('/api/checkout-session', async (req, res) => {
                     quantity: 1,
                 },
             ],
-            mode: 'subscription', // Modo assinatura
-            allow_promotion_codes: true, // Exibe o campo para cupom na Stripe
+            mode: 'subscription',
+            allow_promotion_codes: discounts.length === 0, // Se ja aplicou desconto automatico, oculta o campo manual
             success_url: `${origin}/dashboard.html?premium=success`,
             cancel_url: `${origin}/plans.html?canceled=true`,
             metadata: {
-                userId: userId // Extremamente importante para sabermos quem comprou no webhook
+                userId: userId
             }
-        });
+        };
+
+        if (discounts.length > 0) {
+            sessionConfig.discounts = discounts;
+        }
+
+        const session = await stripe.checkout.sessions.create(sessionConfig);
 
         res.json({ url: session.url });
     } catch (error) {
