@@ -23,6 +23,14 @@
                 <span class="logo-text">nutrik</span>
                 <span class="logo-bubble" style="font-size: 32px; padding: 2px 10px 4px 8px;">.ia</span>
             </div>
+
+            <div id="offer-banner"
+                style="display: none; background: #FFF9C4; border: 1.5px solid #000; padding: 16px; border-radius: 16px; margin-bottom: 24px; font-weight: 700;">
+                🎉 Especial de Boas-Vindas! Aplique o cupom <span
+                    style="background: var(--primary); padding: 2px 8px; border-radius: 4px; border: 1px solid #000; letter-spacing: 1px;">OFERTA30</span>
+                no checkout e ganhe 30% de desconto no 1º mês!
+            </div>
+
             <h1 class="plans-title">Desbloqueie seu Potencial</h1>
             <p class="plans-subtitle">Tenha um nutricionista de bolso 24h analisando pratos e te guiando rumo ao seu
                 objetivo.</p>
@@ -67,7 +75,7 @@
                             os somando sozinhos na sua Dashboard Premium.</span></div>
                 </div>
 
-                <a href="chat.html" class="btn-outline" style="margin-top: auto;">Sair e Voltar pro Chat</a>
+                <a href="dashboard.html" class="btn-outline" style="margin-top: auto;">Sair e Voltar para o App</a>
             </div>
 
             <!-- Card Pro (Destaque) -->
@@ -141,6 +149,13 @@
                     window.location.href = 'index.html';
                 }
             });
+
+            // Handle special offer param
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('offer') === 'true') {
+                const banner = document.getElementById('offer-banner');
+                if (banner) banner.style.display = 'block';
+            }
 
             // Handle Stripe Checkout
             const btnPremium = document.getElementById('btn-premium');

@@ -213,9 +213,7 @@
                         user_id: session.user.id,
                         weight: profileData.current_weight
                     });
-                    if (wError) throw wError;
-
-                    window.location.href = 'dashboard.html'; // Próximo passo: Dashboard
+                    window.location.href = 'plans.html?offer=true'; // Upsell na entrada
                 } catch (err) {
                     alert('Erro ao salvar: ' + err.message);
                     btn.textContent = 'Finalizar Perfil ⚡';

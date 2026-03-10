@@ -101,6 +101,7 @@ app.post('/api/checkout-session', async (req, res) => {
                 },
             ],
             mode: 'subscription', // Modo assinatura
+            allow_promotion_codes: true, // Exibe o campo para cupom na Stripe
             success_url: `${origin}/dashboard.html?premium=success`,
             cancel_url: `${origin}/plans.html?canceled=true`,
             metadata: {

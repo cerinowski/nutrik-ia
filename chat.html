@@ -385,7 +385,21 @@
                     const cost = imageToSend ? 5 : 1;
                     credits -= cost;
                     if (credits < 0) credits = 0;
-                    document.getElementById('credit-count').textContent = credits;
+
+                    const creditCountEl = document.getElementById('credit-count');
+                    creditCountEl.textContent = credits;
+
+                    if (credits <= 15) {
+                        creditCountEl.parentElement.style.color = '#DC2626';
+                        creditCountEl.parentElement.style.animation = 'pulse 2s infinite';
+                    }
+
+                    if (imageToSend) {
+                        setTimeout(() => {
+                            appendMessage("📸 *Análise concluída (Custo: 5 créditos).* No Premium, a câmera é liberada e você pode analisar pratos o dia todo sem limites! <a href='plans.html?offer=true' style='color: var(--primary); font-weight: bold;'>Assinar Premium</a>", false, false, false);
+                        }, 1000);
+                    }
+
                     if (typeof window.currentUser !== 'undefined' && window.currentUser) {
                         window.supabaseClient.from('profiles').update({ credits: credits }).eq('id', window.currentUser.id)
                             .then(({ error }) => { if (error) console.error("Credit update err:", error) });
