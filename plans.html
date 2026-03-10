@@ -155,22 +155,18 @@
                 }
             });
 
-            // Handle special offer param
-            const urlParams = new URLSearchParams(window.location.search);
-            let activeOffer = null;
-            if (urlParams.get('offer') === 'true') {
-                activeOffer = 'OFERTA30';
-                const banner = document.getElementById('offer-banner');
-                if (banner) banner.style.display = 'block';
+            // Remove param check and globally apply offer
+            const activeOffer = 'OFERTA30';
+            const banner = document.getElementById('offer-banner');
+            if (banner) banner.style.display = 'block';
 
-                // Visual Strike Pricing
-                const origPrice = document.getElementById('original-price');
-                const pAmount = document.getElementById('price-amount');
-                if (origPrice && pAmount) {
-                    origPrice.style.display = 'block';
-                    pAmount.textContent = '39,90';
-                    pAmount.style.color = 'var(--primary)';
-                }
+            // Visual Strike Pricing
+            const origPrice = document.getElementById('original-price');
+            const pAmount = document.getElementById('price-amount');
+            if (origPrice && pAmount) {
+                origPrice.style.display = 'block';
+                pAmount.textContent = '39,90';
+                pAmount.style.color = 'var(--primary)';
             }
 
             // Handle Stripe Checkout
