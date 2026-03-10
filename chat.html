@@ -12,7 +12,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.css" />
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
 </head>
 
 <body>
@@ -547,6 +549,40 @@
 
         // Start initialization loop
         initAuth();
+
+        // Welcome Tutorial (Driver.js)
+        function runTour() {
+            if (localStorage.getItem('chatTourSeen')) return;
+
+            const driverObj = window.driver.js.driver({
+                showProgress: true,
+                nextBtnText: 'Próximo',
+                prevBtnText: 'Anterior',
+                doneBtnText: 'Entendi!',
+                steps: [
+                    { popover: { title: 'Bem-vindo ao Nutrik.IA! 👋', description: 'Vamos fazer um tour rápido para você aproveitar ao máximo seu nutricionista de bolso.' } },
+                    { element: '.chat-input-area', popover: { title: '1. O Chat Principal', description: 'Aqui você digita qualquer dúvida de nutrição ou dieta. Pode perguntar sobre calorias, treinos ou pedir cardápios.', side: 'top', align: 'center' } },
+                    { element: '#camera-btn', popover: { title: '2. A Lente Mágica 📸', description: 'A funcionalidade mais poderosa! Toque aqui, envie a foto do seu prato, e a IA extrai e salva todos os macronutrientes na hora.', side: 'top', align: 'start' } },
+                    { element: '.credits-badge a[href="dashboard.html"]', popover: { title: '3. Seu Dashboard', description: 'Acompanhe seu gráfico de peso e o histórico diário de calorias clicando aqui.', side: 'bottom', align: 'center' } },
+                    { element: '#credits-display', popover: { title: '4. Seus Créditos', description: 'Você ganhou 50 créditos grátis para testar. Dúvidas custam 1 crédito, e Análises de Fotos custam 5.', side: 'bottom', align: 'center' } },
+                    { element: '.upgrade-btn', popover: { title: '5. Desbloqueie o Premium 🚀', description: 'Quando seus créditos gratuitos acabarem, basta assinar o Premium para ter o app ilimitado sem amarras. Vamos lá!', side: 'bottom', align: 'end' } }
+                ],
+                onDestroyStarted: () => {
+                    localStorage.setItem('chatTourSeen', 'true');
+                    driverObj.destroy();
+                }
+            });
+
+            // Delay slight to ensure DOM and Lucide icons settled
+            setTimeout(() => {
+                driverObj.drive();
+            }, 500);
+        }
+
+        // Run tour when ready
+        document.addEventListener('DOMContentLoaded', () => {
+            runTour();
+        });
     </script>
 </body>
 
