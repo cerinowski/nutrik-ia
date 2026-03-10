@@ -114,7 +114,6 @@ app.post('/api/checkout-session', async (req, res) => {
                 },
             ],
             mode: 'subscription',
-            allow_promotion_codes: discounts.length === 0, // Se ja aplicou desconto automatico, oculta o campo manual
             success_url: `${origin}/dashboard.html?premium=success`,
             cancel_url: `${origin}/plans.html?canceled=true`,
             metadata: {
@@ -124,6 +123,8 @@ app.post('/api/checkout-session', async (req, res) => {
 
         if (discounts.length > 0) {
             sessionConfig.discounts = discounts;
+        } else {
+            sessionConfig.allow_promotion_codes = true;
         }
 
         const session = await stripe.checkout.sessions.create(sessionConfig);
