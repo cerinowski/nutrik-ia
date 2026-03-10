@@ -275,6 +275,25 @@
         </div>
     </div>
 
+    <!-- Free User Popup -->
+    <div class="modal-overlay" id="free-user-popup">
+        <div class="modal-content">
+            <button class="modal-close" id="close-popup" title="Fechar">
+                <i data-lucide="x" style="width: 24px; height: 24px;"></i>
+            </button>
+            <div class="modal-icon">
+                <i data-lucide="alert-circle" style="width: 32px; height: 32px; color: #F59E0B;"></i>
+            </div>
+            <h2 class="modal-title">Atenção!</h2>
+            <p class="modal-text">Seus créditos limitados estão acabando. Assine o Premium para desbloquear recursos
+                avançados e ter acesso ilimitado!</p>
+            <a href="plans.html" class="btn-primary" style="margin-bottom: 12px;">Ver Planos Premium</a>
+            <button id="close-popup-alt"
+                style="background: none; border: none; font-size: 14px; color: #666; cursor: pointer; text-decoration: underline; font-family: inherit; font-weight: 500;">Continuar
+                com limitações</button>
+        </div>
+    </div>
+
     <script type="module" src="config.js"></script>
     <script>
         let chart;
@@ -467,6 +486,23 @@
             // Bloqueio Premium
             const isPremium = profile?.plan === 'premium';
             if (!isPremium) {
+                // Show Popup for Free Users (only once per session for better UX, or always if prefered. Let's show always for now as requested or check sessionStorage)
+                if (!sessionStorage.getItem('freePopupShown')) {
+                    const popup = document.getElementById('free-user-popup');
+                    if (popup) {
+                        popup.classList.add('active');
+
+                        document.getElementById('close-popup').onclick = () => {
+                            popup.classList.remove('active');
+                            sessionStorage.setItem('freePopupShown', 'true');
+                        };
+                        document.getElementById('close-popup-alt').onclick = () => {
+                            popup.classList.remove('active');
+                            sessionStorage.setItem('freePopupShown', 'true');
+                        };
+                    }
+                }
+
                 const lockHtml = `
                     <div class="lock-overlay">
                         <div class="icon-bg">
