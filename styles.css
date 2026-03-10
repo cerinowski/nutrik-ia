@@ -96,6 +96,65 @@ body {
     top: 2px;
 }
 
+/* --- LOW CREDITS WARNING --- */
+@keyframes urgentPulse {
+    0% {
+        transform: scale(1);
+        color: #DC2626;
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4);
+    }
+
+    50% {
+        transform: scale(1.05);
+        color: #EF4444;
+        box-shadow: 0 0 0 6px rgba(220, 38, 38, 0);
+    }
+
+    100% {
+        transform: scale(1);
+        color: #DC2626;
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+    }
+}
+
+.low-credits-warning {
+    color: #DC2626 !important;
+    animation: urgentPulse 1.5s infinite;
+    position: relative;
+    border-radius: 8px;
+    padding: 2px 6px;
+    background: rgba(220, 38, 38, 0.1);
+}
+
+.low-credits-warning::after {
+    content: "Seus créditos estão acabando!";
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: max-content;
+    background: #DC2626;
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+    z-index: 1000;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.low-credits-warning::before {
+    content: "";
+    position: absolute;
+    top: 100%;
+    right: 15px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent #DC2626 transparent;
+    z-index: 1000;
+}
+
 /* --- APP HEADER (DASHBOARD/CHAT/PROFILE) --- */
 .app-header {
     position: sticky;

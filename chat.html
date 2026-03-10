@@ -399,8 +399,9 @@
                     creditCountEl.textContent = credits;
 
                     if (credits <= 15) {
-                        creditCountEl.parentElement.style.color = '#DC2626';
-                        creditCountEl.parentElement.style.animation = 'pulse 2s infinite';
+                        creditCountEl.parentElement.classList.add('low-credits-warning');
+                    } else {
+                        creditCountEl.parentElement.classList.remove('low-credits-warning');
                     }
 
                     if (imageToSend) {
@@ -515,6 +516,10 @@
                             } else {
                                 creditCountEl.textContent = credits;
                                 if (creditLabelEl) creditLabelEl.style.display = 'inline';
+
+                                if (credits <= 15) {
+                                    creditCountEl.parentElement.classList.add('low-credits-warning');
+                                }
 
                                 const banner = document.getElementById('global-premium-banner');
                                 if (banner) banner.style.display = 'block';
