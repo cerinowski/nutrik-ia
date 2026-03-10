@@ -165,6 +165,13 @@
         </div>
     </header>
 
+    <!-- Global Premium Banner -->
+    <a href="plans.html" id="dashboard-premium-banner"
+        style="display: none; background: linear-gradient(90deg, #111, #333); color: var(--primary); text-align: center; padding: 10px; font-size: 13px; font-weight: 700; text-decoration: none; border-bottom: 1.5px solid #000; width: 100%;">
+        🚀 Assine o Premium e libere recursos ilimitados! <span
+            style="text-decoration: underline; color: #fff; font-weight: 500; margin-left: 4px;">Ver ofertas</span>
+    </a>
+
     <div class="dashboard-grid">
         <div class="card card-full"
             style="background: #000; color: #fff; display: flex; justify-content: space-between; align-items: center;">
@@ -485,7 +492,16 @@
 
             // Bloqueio Premium
             const isPremium = profile?.plan === 'premium';
-            if (!isPremium) {
+            if (isPremium) {
+                const greeting = document.getElementById('user-greeting');
+                if (greeting) {
+                    greeting.innerHTML += '<i data-lucide="crown" title="Nutrik Premium" style="width: 28px; height: 28px; color: #F59E0B; fill: #F59E0B; vertical-align: middle; margin-left: 8px;"></i>';
+                    setTimeout(() => lucide.createIcons(), 50);
+                }
+            } else {
+                const globalBanner = document.getElementById('dashboard-premium-banner');
+                if (globalBanner) globalBanner.style.display = 'block';
+
                 // Show Popup for Free Users (only once per session for better UX, or always if prefered. Let's show always for now as requested or check sessionStorage)
                 if (!sessionStorage.getItem('freePopupShown')) {
                     const popup = document.getElementById('free-user-popup');

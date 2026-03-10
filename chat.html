@@ -25,7 +25,8 @@
         <div class="chat-header">
             <div class="avatar">nk</div>
             <div class="chat-header-info">
-                <h2>Nutrik.IA</h2>
+                <h2 style="display: flex; align-items: center;">Nutrik.IA <span id="premium-crown-container"></span>
+                </h2>
                 <p><span class="status-dot"></span> Online</p>
             </div>
             <div class="credits-badge" style="display: flex; gap: 8px; align-items: center;">
@@ -38,16 +39,20 @@
                     style="display: flex; align-items: center; margin-left: 4px;">
                     <i data-lucide="zap"
                         style="width: 14px; height: 14px; display: inline-block; margin-right: 2px;"></i>
-                    <span id="credit-count">...</span> Cr.
+                    <span id="credit-count">...</span> <span id="credit-label" style="margin-left: 2px;">Créditos</span>
                 </span>
-                <a href="plans.html" class="upgrade-btn"
-                    style="background: var(--primary); color: #000; padding: 4px 8px; border-radius: 12px; font-size: 11px; text-decoration: none; font-weight: 700; border: 1px solid #000;">Assinar
-                    Premium</a>
                 <i data-lucide="log-out" id="logout-btn"
                     style="width: 16px; height: 16px; cursor: pointer; color: #DC2626; margin-left: 4px;"
                     title="Sair"></i>
             </div>
         </div>
+
+        <!-- Global Premium Banner -->
+        <a href="plans.html" id="global-premium-banner"
+            style="display: none; background: linear-gradient(90deg, #111, #333); color: var(--primary); text-align: center; padding: 10px; font-size: 13px; font-weight: 700; text-decoration: none; border-bottom: 1.5px solid #000;">
+            🚀 Assine o Premium e libere recursos ilimitados! <span
+                style="text-decoration: underline; color: #fff; font-weight: 500; margin-left: 4px;">Ver ofertas</span>
+        </a>
 
         <!-- Messages Area -->
         <div class="chat-messages" id="chat-messages">
@@ -495,12 +500,24 @@
                         }
 
                         const creditCountEl = document.getElementById('credit-count');
+                        const creditLabelEl = document.getElementById('credit-label');
                         if (creditCountEl) {
                             const userPlan = (window.currentUser.plan || '').trim().toLowerCase();
                             if (userPlan === 'premium') {
-                                creditCountEl.innerHTML = '<span style="font-size: 10px; text-transform: uppercase;">Ilimitado</span>';
+                                creditCountEl.innerHTML = '<span style="font-size: 11px; font-weight: 800; letter-spacing: 0.5px;">ILIMITADO</span>';
+                                if (creditLabelEl) creditLabelEl.style.display = 'none';
+
+                                const crownContainer = document.getElementById('premium-crown-container');
+                                if (crownContainer) {
+                                    crownContainer.innerHTML = '<i data-lucide="crown" style="width: 16px; height: 16px; color: #F59E0B; margin-left: 6px; fill: #F59E0B;"></i>';
+                                    lucide.createIcons();
+                                }
                             } else {
                                 creditCountEl.textContent = credits;
+                                if (creditLabelEl) creditLabelEl.style.display = 'inline';
+
+                                const banner = document.getElementById('global-premium-banner');
+                                if (banner) banner.style.display = 'block';
 
                                 // Show Popup for Free Users
                                 if (!sessionStorage.getItem('freePopupShown')) {
