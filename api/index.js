@@ -33,61 +33,47 @@ app.post(['/api/webhook', '/webhook/stripe'], express.raw({ type: 'application/j
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object;
         const userId = session.metadata?.userId || session.client_reference_id;
+        const email = session.customer_email || session.customer_details?.email;
 
-        if (userId) {
-            console.log(`💰 Pagamento recebido para userId: ${userId}. Atualizando plano...`);
+        console.log(`[STRIPE WEBHOOK] Checkout Session Completed. UserId: ${userId}, Email: ${email}`);
 
+        if (userId || email) {
             const updateData = { plan: 'premium', credits: 99999 };
 
-            // Se for um trial, vamos marcar a data de término no perfil
-            // No Stripe Checkout, se houver trial, a subscription terá um trial_end
             if (session.subscription) {
                 try {
                     const subscription = await stripe.subscriptions.retrieve(session.subscription);
                     if (subscription && subscription.trial_end) {
                         updateData.trial_ends_at = new Date(subscription.trial_end * 1000).toISOString();
-                        console.log(`[TRIAL] Data de término definida para: ${updateData.trial_ends_at}`);
                     }
                 } catch (err) {
-                    console.error("Erro ao buscar detalhes da subscription para trial:", err);
+                    console.error("Erro ao buscar detalhes da subscription:", err.message);
                 }
             }
 
-            // Update Supabase
-            const { error } = await supabaseAdmin
-                .from('profiles')
-                .update(updateData)
-                .eq('id', userId);
-
-            if (error) {
-                console.error("Erro ao atualizar plano no Supabase:", error);
+            let updateQuery = supabaseAdmin.from('profiles').update(updateData);
+            if (userId) {
+                updateQuery = updateQuery.eq('id', userId);
             } else {
-                console.log("✅ Plano Premium ativado com sucesso para:", userId);
+                updateQuery = updateQuery.eq('email', email);
+            }
+
+            const { error } = await updateQuery;
+            if (error) {
+                console.error("Erro ao atualizar no Supabase:", error.message);
+            } else {
+                console.log("✅ Plano ativado com sucesso!");
             }
         }
-    } else if (event.type === 'charge.refunded' || event.type === 'customer.subscription.deleted') {
-        const obj = event.data.object;
-        let email = obj.receipt_email || obj.billing_details?.email;
-
-        let customerId = obj.customer;
-        if (!email && customerId) {
-            try {
-                if (typeof customerId !== 'string') customerId = customerId.id;
-                const customer = await stripe.customers.retrieve(customerId);
-                email = customer.email;
-            } catch (err) {
-                console.error("⚠️ Erro ao buscar email do customer na Stripe:", err.message);
+    } else if (event.type === 'customer.subscription.deleted' || event.type === 'customer.subscription.updated') {
+        const subscription = event.data.object;
+        if (subscription.status === 'canceled' || subscription.status === 'unpaid') {
+            const customer = await stripe.customers.retrieve(subscription.customer);
+            const email = customer.email;
+            if (email) {
+                await supabaseAdmin.from('profiles').update({ plan: 'free', credits: 50 }).eq('email', email);
+                console.log(`📉 Assinatura cancelada para: ${email}`);
             }
-        }
-
-        if (email) {
-            console.log(`📉 Cancelamento ou Reembolso detectado para: ${email}. Retornando perfil para free...`);
-            await supabaseAdmin
-                .from('profiles')
-                .update({ plan: 'free', credits: 50 })
-                .eq('email', email);
-        } else {
-            console.warn(`⚠️ Não foi possível achar o email na Stripe para resetar a conta:`, obj.id);
         }
     }
 

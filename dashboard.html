@@ -468,6 +468,19 @@
             const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
             console.log('Perfil carregado:', profile);
 
+            // Se o usuário acabou de assinar, mas o webhook ainda não processou (ou se ele está em trial)
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('premium') === 'success' && profile?.plan !== 'premium') {
+                console.log('Aguardando ativação do plano...');
+                // Tenta recarregar o perfil após 3 segundos para dar tempo ao webhook
+                setTimeout(async () => {
+                    const { data: retryProfile } = await supabase.from('profiles').select('*').eq('id', userId).single();
+                    if (retryProfile?.plan === 'premium') {
+                        window.location.reload();
+                    }
+                }, 3000);
+            }
+
             let targetCals = 2000;
             if (profile) {
                 document.getElementById('user-greeting').textContent = `Olá, ${profile.full_name?.split(' ')[0] || 'Campeão'}!`;
@@ -512,8 +525,9 @@
             await refreshDailyMacros(supabase, userId, profile, todayStr);
             await refreshWeight(supabase, userId, 'all');
 
-            // Bloqueio Premium
-            const isPremium = profile?.plan === 'premium';
+            // Bloqueio Premium (Considerar Trial como Premium)
+            const isPremium = profile?.plan === 'premium' || (profile?.trial_ends_at && new Date(profile.trial_ends_at) > new Date());
+
             if (isPremium) {
                 const greeting = document.getElementById('user-greeting');
                 if (greeting) {
