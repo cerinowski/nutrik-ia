@@ -142,7 +142,7 @@ app.post('/api/checkout-session', async (req, res) => {
             client_reference_id: userId,
             line_items: [
                 {
-                    price: 'price_1T7GfOFobyRkpryqz29bCT7W', // O ID do Produto na Stripe
+                    price: 'price_1TBj7cFobyRkpryqf7ZbW0MX', // O ID do Produto na Stripe
                     quantity: 1,
                 },
             ],

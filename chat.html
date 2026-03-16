@@ -66,6 +66,9 @@
                         Aqui está como posso ajudar você a atingir seus objetivos:
                     </div>
 
+                    <p style="text-align: center; font-size: 11px; color: #9CA3AF; margin-top: -8px;">
+                        Depois R$ 13,93 no 1º mês (promoção aplicada)
+                    </p>
                     <div style="display: grid; gap: 12px; margin-bottom: 20px;">
                         <div
                             style="background: rgba(255,255,255,0.5); border: 1px solid rgba(0,0,0,0.05); padding: 12px; border-radius: 12px; display: flex; gap: 12px; align-items: flex-start;">
@@ -98,6 +101,9 @@
 
                     <div
                         style="background: #000; color: #FFF; padding: 16px; border-radius: 12px; font-size: 13px; line-height: 1.5; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                        <div id="original-price"
+                            style="display: none; text-decoration: line-through; color: #9CA3AF; font-size: 20px; font-weight: 600; margin-bottom: 4px;">
+                            R$ 29,90/mês</div>
                         <strong
                             style="color: var(--primary); display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
                             <i data-lucide="crown" style="width: 14px; height: 14px;"></i> Dica Premium
@@ -160,7 +166,7 @@
             <h2 class="modal-title" style="font-size: 22px; color: #FFD700;">🎁 VOCÊ GANHOU UM PRESENTE!</h2>
             <p class="modal-text" style="color: #ccc; font-size: 15px; margin-bottom: 25px;">Liberamos <b>3 dias de
                     acesso PREMIUM</b> para você testar todas as funções ilimitadas do Nutrik.IA!<br><br>Após o teste,
-                você paga apenas <b>R$ 39,90 no primeiro mês</b>.</p>
+                você paga apenas <b>R$ 13,93 no primeiro mês</b>.</p>
             <a href="plans.html?trial=true" class="btn-primary"
                 style="background: #FFD700; color: #000; font-weight: 800; border: none; padding: 15px; font-size: 16px;">Ativar
                 presente agora ⚡</a>
@@ -709,7 +715,14 @@
                                 if (credits <= 15) {
                                     creditCountEl.parentElement.classList.add('low-credits-warning');
                                 }
-
+                                // Visual Strike Pricing
+                                const origPrice = document.getElementById('original-price');
+                                const pAmount = document.getElementById('price-amount');
+                                if (origPrice && pAmount) {
+                                    origPrice.style.display = 'block';
+                                    pAmount.textContent = '13,93';
+                                    pAmount.style.color = 'var(--primary)';
+                                }
                                 const banner = document.getElementById('global-premium-banner');
                                 if (banner) banner.style.display = 'block';
 
