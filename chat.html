@@ -147,22 +147,25 @@
 
     </div>
 
-    <!-- Free User Popup -->
+    <!-- Trial Gift Popup for Free Users -->
     <div class="modal-overlay" id="free-user-popup">
-        <div class="modal-content">
-            <button class="modal-close" id="close-popup" title="Fechar">
+        <div class="modal-content" style="border: 2px solid #FFD700; background: #000; color: #fff;">
+            <button class="modal-close" id="close-popup" title="Fechar" style="color: #fff;">
                 <i data-lucide="x" style="width: 24px; height: 24px;"></i>
             </button>
-            <div class="modal-icon">
-                <i data-lucide="alert-circle" style="width: 32px; height: 32px; color: #F59E0B;"></i>
+            <div class="modal-icon"
+                style="background: rgba(255, 215, 0, 0.1); padding: 20px; border-radius: 50%; width: fit-content; margin: 0 auto 20px;">
+                <i data-lucide="gift" style="width: 40px; height: 40px; color: #FFD700;"></i>
             </div>
-            <h2 class="modal-title" style="font-size: 20px;">⚠️ Você está perto do seu limite gratuito</h2>
-            <p class="modal-text">A Nutrik.IA já analisou suas refeições de hoje.<br><br>Mas sem acompanhamento completo
-                você pode estar consumindo centenas de calorias extras sem perceber.</p>
-            <a href="plans.html" class="btn-primary" style="margin-bottom: 12px;">🔥Desbloqueie o Premium</a>
+            <h2 class="modal-title" style="font-size: 22px; color: #FFD700;">🎁 VOCÊ GANHOU UM PRESENTE!</h2>
+            <p class="modal-text" style="color: #ccc; font-size: 15px; margin-bottom: 25px;">Liberamos <b>3 dias de
+                    acesso PREMIUM</b> para você testar todas as funções ilimitadas do Nutrik.IA agora mesmo!</p>
+            <a href="plans.html?trial=true" class="btn-primary"
+                style="background: #FFD700; color: #000; font-weight: 800; border: none; padding: 15px; font-size: 16px;">ATIVAR
+                MEUS 3 DIAS GRÁTIS</a>
             <button id="close-popup-alt"
-                style="background: none; border: none; font-size: 12px; color: #666; cursor: pointer; text-decoration: underline; font-family: inherit; font-weight: 500;">Continuar
-                sem acompanhamento completo</button>
+                style="background: none; border: none; font-size: 12px; color: #999; cursor: pointer; text-decoration: underline; font-family: inherit; font-weight: 500; margin-top: 15px;">Continuar
+                na versão limitada</button>
         </div>
     </div>
 
