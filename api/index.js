@@ -30,14 +30,7 @@ app.post(['/api/webhook', '/webhook/stripe'], express.raw({ type: 'application/j
         event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
     } catch (err) {
         console.error('⚠️  Erro no Webhook da Stripe (Verify):', err.message);
-        // Temporariamente, se não houver Secret, vamos tentar ler o dado direto para TESTE
-        // APENAS SE ESTIVERMOS EM AMBIENTE DE TESTE
-        if (!endpointSecret) {
-            console.warn("⚠️  Processando sem assinatura por falta de STRIPE_WEBHOOK_SECRET (NÃO SEGURO!)");
-            event = JSON.parse(req.body.toString());
-        } else {
-            return res.status(400).send(`Webhook Error: ${err.message}`);
-        }
+        return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
     // Handle the checkout.session.completed event
