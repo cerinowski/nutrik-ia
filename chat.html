@@ -221,11 +221,12 @@
             return html;
         }
 
-        function appendMessage(text, isUser = true, isImageAnalysis = false, saveToHistory = true, rawTextForHistory = null) {
+        function appendMessage(text, isUser = true, isImageAnalysis = false, saveToHistory = true, rawTextForHistory = null, timestamp = null) {
             const msgDiv = document.createElement('div');
             msgDiv.className = `msg ${isUser ? 'user' : 'ai'}`;
 
-            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const dateObj = timestamp ? new Date(timestamp) : new Date();
+            const time = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
             const formattedText = isUser ? text : formatMarkdown(text);
             let bubbleHtml = `<div class="msg-bubble">${formattedText}</div>`;
@@ -233,7 +234,11 @@
             // Save to memory
             if (saveToHistory) {
                 const textToSave = rawTextForHistory !== null ? rawTextForHistory : text;
-                chatHistory.push({ role: isUser ? 'user' : 'model', text: textToSave });
+                chatHistory.push({
+                    role: isUser ? 'user' : 'model',
+                    text: textToSave,
+                    timestamp: dateObj.toISOString()
+                });
 
                 // Update Supabase DB
                 // WE ONLY UPDATE HERE DURING ACTIVE TYPING, NOT ON INITIAL LOAD
@@ -751,7 +756,7 @@
                             if (messagesContainer) messagesContainer.innerHTML = ''; // Remove default welcome message
                             chatHistory.forEach(msg => {
                                 // Pass saveToHistory = false to prevent re-uploading the loaded history
-                                appendMessage(msg.text, msg.role === 'user', false, false);
+                                appendMessage(msg.text, msg.role === 'user', false, false, null, msg.timestamp);
                             });
                         }
                     } catch (err) {

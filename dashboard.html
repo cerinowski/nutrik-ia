@@ -510,7 +510,8 @@
 
             // Configurar Date Picker com a data de hoje por padrão
             const dateFilterInput = document.getElementById('date-filter');
-            const todayStr = new Date().toISOString().split('T')[0];
+            const d = new Date();
+            const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             dateFilterInput.value = todayStr;
             dateFilterInput.max = todayStr; // Nao permitir datas futuras
 
