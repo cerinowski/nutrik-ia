@@ -320,8 +320,9 @@
         let chart;
 
         function calculateTDEE(p) {
-            if (!p.weight || !p.height || !p.age) return 2000;
-            let bmr = (10 * p.weight) + (6.25 * p.height) - (5 * p.age);
+            const weight = p.weight || p.current_weight;
+            if (!weight || !p.height || !p.age) return 2000;
+            let bmr = (10 * weight) + (6.25 * p.height) - (5 * p.age);
             bmr = p.gender === 'male' ? bmr + 5 : bmr - 161;
 
             const multipliers = {
