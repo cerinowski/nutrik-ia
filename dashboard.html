@@ -172,6 +172,20 @@
             style="text-decoration: underline; color: #fff; font-weight: 500; margin-left: 4px;">Ver ofertas</span>
     </a>
 
+    <!-- Trial Countdown Banner -->
+    <div id="trial-countdown-banner"
+        style="display: none; background: #000; color: #fff; text-align: center; padding: 12px; font-weight: 700; border-bottom: 2px solid var(--primary); font-size: 14px; letter-spacing: 0.5px;">
+        🎁 VOCÊ ESTÁ NO TESTE PREMIUM! Expira em: <span id="trial-timer"
+            style="color: var(--primary); font-family: 'Courier New', Courier, monospace; font-size: 16px; margin-left: 5px;">--:--:--</span>
+    </div>
+
+    <!-- Banner de Afiliado (Novidade) -->
+    <a href="affiliate.html" id="dashboard-affiliate-banner"
+        style="display: block; background: #d4ff00; color: #000; text-align: center; padding: 10px; font-size: 13px; font-weight: 700; text-decoration: none; border-bottom: 1.5px solid #000; width: 100%; transition: background 0.2s;">
+        💰 Novidade: Ganhe 30% de comissão indicando o Nutrik.IA! <span
+            style="text-decoration: underline; color: #000; font-weight: 800; margin-left: 4px;">Pegar meu link</span>
+    </a>
+
     <div class="dashboard-grid">
         <div class="card card-full"
             style="background: #000; color: #fff; display: flex; justify-content: space-between; align-items: center;">
@@ -291,13 +305,13 @@
             <div class="modal-icon">
                 <i data-lucide="alert-circle" style="width: 32px; height: 32px; color: #F59E0B;"></i>
             </div>
-            <h2 class="modal-title">Atenção!</h2>
-            <p class="modal-text">Seus créditos limitados estão acabando. Assine o Premium para desbloquear recursos
-                avançados e ter acesso ilimitado!</p>
-            <a href="plans.html" class="btn-primary" style="margin-bottom: 12px;">Ver Planos Premium</a>
+            <h2 class="modal-title" style="font-size: 20px;">⚠️ Você está perto do seu limite gratuito</h2>
+            <p class="modal-text">A Nutrik.IA já analisou suas refeições de hoje.<br><br>Mas sem acompanhamento completo
+                você pode estar consumindo centenas de calorias extras sem perceber.</p>
+            <a href="plans.html" class="btn-primary" style="margin-bottom: 12px;">🔥Desbloqueie o Premium</a>
             <button id="close-popup-alt"
-                style="background: none; border: none; font-size: 14px; color: #666; cursor: pointer; text-decoration: underline; font-family: inherit; font-weight: 500;">Continuar
-                com limitações</button>
+                style="background: none; border: none; font-size: 12px; color: #666; cursor: pointer; text-decoration: underline; font-family: inherit; font-weight: 500;">Continuar
+                sem acompanhamento completo</button>
         </div>
     </div>
 
@@ -305,7 +319,28 @@
     <script>
         let chart;
 
-        async function refreshDailyMacros(supabase, userId, targetCals, selectedDateStr = null) {
+        function calculateTDEE(p) {
+            if (!p.weight || !p.height || !p.age) return 2000;
+            let bmr = (10 * p.weight) + (6.25 * p.height) - (5 * p.age);
+            bmr = p.gender === 'male' ? bmr + 5 : bmr - 161;
+
+            const multipliers = {
+                'sedentary': 1.2,
+                'light': 1.375,
+                'moderate': 1.55,
+                'active': 1.725,
+                'very_active': 1.9
+            };
+            let tdee = bmr * (multipliers[p.activity_level] || 1.375);
+
+            if (p.goal === 'lose') return Math.round(tdee - 500);
+            if (p.goal === 'gain') return Math.round(tdee + 400);
+            return Math.round(tdee);
+        }
+
+        async function refreshDailyMacros(supabase, userId, profile, selectedDateStr = null) {
+            const targetCals = profile?.manual_calories || calculateTDEE(profile || {});
+
             // Filtro para o dia especificado, fallback para hoje
             const targetDate = selectedDateStr ? new Date(selectedDateStr + 'T00:00:00') : new Date();
 
@@ -357,10 +392,10 @@
                     listContainer.innerHTML = '<p style="font-size: 13px; color: #999; text-align: center; padding: 10px;">Ainda não detectamos fotos de hoje.</p>';
                 }
 
-                // Barras de Macros (Pro 30%, Carb 40%, Fat 30%)
-                const targetPro = (targetCals * 0.3) / 4;
-                const targetCarb = (targetCals * 0.4) / 4;
-                const targetFat = (targetCals * 0.3) / 9;
+                // Barras de Macros (Manual ou Default Pro 30%, Carb 40%, Fat 30%)
+                const targetPro = profile?.manual_protein || (targetCals * 0.3) / 4;
+                const targetCarb = profile?.manual_carbs || (targetCals * 0.4) / 4;
+                const targetFat = profile?.manual_fats || (targetCals * 0.3) / 9;
 
                 const pctPro = Math.min((total.pro / targetPro) * 100, 100);
                 const pctCarb = Math.min((total.carb / targetCarb) * 100, 100);
@@ -429,24 +464,6 @@
 
             const userId = session.user.id;
 
-            function calculateTDEE(p) {
-                if (!p.weight || !p.height || !p.age) return 2000;
-                let bmr = (10 * p.weight) + (6.25 * p.height) - (5 * p.age);
-                bmr = p.gender === 'male' ? bmr + 5 : bmr - 161;
-
-                const multipliers = {
-                    'sedentary': 1.2,
-                    'light': 1.375,
-                    'moderate': 1.55,
-                    'active': 1.725,
-                    'very_active': 1.9
-                };
-                let tdee = bmr * (multipliers[p.activity_level] || 1.375);
-
-                if (p.goal === 'lose') return Math.round(tdee - 500);
-                if (p.goal === 'gain') return Math.round(tdee + 400);
-                return Math.round(tdee);
-            }
 
             const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
             console.log('Perfil carregado:', profile);
@@ -461,14 +478,19 @@
                 document.getElementById('weight-target').textContent = tWeight ? `${tWeight}kg` : '--';
                 document.getElementById('weight-current').textContent = cWeight ? `${cWeight}kg` : '--';
 
-                targetCals = calculateTDEE({
-                    weight: profile.current_weight,
-                    height: profile.height,
-                    age: profile.age,
-                    gender: profile.gender,
-                    activity_level: profile.activity_level,
-                    goal: profile.goal
-                });
+                const manualCal = parseFloat(profile.manual_calories);
+                if (manualCal) {
+                    targetCals = manualCal;
+                } else {
+                    targetCals = calculateTDEE({
+                        weight: profile.current_weight,
+                        height: profile.height,
+                        age: profile.age,
+                        gender: profile.gender,
+                        activity_level: profile.activity_level,
+                        goal: profile.goal
+                    });
+                }
                 document.getElementById('target-cals').textContent = targetCals;
             }
 
@@ -480,14 +502,14 @@
 
             // Event Listeners dos Filtros
             dateFilterInput.addEventListener('change', async (e) => {
-                await refreshDailyMacros(supabase, userId, targetCals, e.target.value);
+                await refreshDailyMacros(supabase, userId, profile, e.target.value);
             });
 
             document.getElementById('chart-time-filter').addEventListener('change', async (e) => {
                 await refreshWeight(supabase, userId, e.target.value);
             });
 
-            await refreshDailyMacros(supabase, userId, targetCals, todayStr);
+            await refreshDailyMacros(supabase, userId, profile, todayStr);
             await refreshWeight(supabase, userId, 'all');
 
             // Bloqueio Premium
@@ -563,9 +585,52 @@
                     });
                     document.getElementById('target-cals').textContent = updatedTdee;
                     await refreshWeight(supabase, userId);
-                    await refreshDailyMacros(supabase, userId, updatedTdee);
+                    await refreshDailyMacros(supabase, userId, { ...profile, current_weight: w });
                 }
             };
+
+            // Trial Countdown Logic
+            if (profile && profile.trial_ends_at) {
+                const endsAt = new Date(profile.trial_ends_at).getTime();
+                const now = new Date().getTime();
+
+                if (endsAt > now) {
+                    const banner = document.getElementById('trial-countdown-banner');
+                    const timer = document.getElementById('trial-timer');
+                    const premiumBanner = document.getElementById('dashboard-premium-banner');
+
+                    if (banner && premiumBanner) {
+                        banner.style.display = 'block';
+                        premiumBanner.style.display = 'none'; // Esconde o banner de "assine" se estiver em trial
+                    }
+
+                    function updateTimer() {
+                        const currentTime = new Date().getTime();
+                        const diff = endsAt - currentTime;
+
+                        if (diff <= 0) {
+                            if (banner) banner.style.display = 'none';
+                            clearInterval(timerInterval);
+                            return;
+                        }
+
+                        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                        const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+                        if (timer) {
+                            const timeStr = days > 0
+                                ? `${days}d ${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+                                : `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                            timer.textContent = timeStr;
+                        }
+                    }
+
+                    const timerInterval = setInterval(updateTimer, 1000);
+                    updateTimer();
+                }
+            }
 
             document.getElementById('logout-btn').onclick = async () => {
                 await supabase.auth.signOut();

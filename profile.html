@@ -152,14 +152,56 @@
                     <span>Ganhar</span>
                 </button>
             </div>
+
+            <!-- Metas Manuais (Nutricionista) -->
+            <div
+                style="background: #F3F4F6; padding: 20px; border-radius: 16px; margin-bottom: 24px; border: 1.5px dashed #000;">
+                <h3
+                    style="font-family: 'Outfit'; font-size: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="settings-2" style="width: 18px; height: 18px;"></i> Metas Manuais (Nutricionista)
+                </h3>
+                <p style="font-size: 12px; color: #666; margin-bottom: 15px;">Fez bioimpedância ou nutricionista passou
+                    metas
+                    exatas? Preencha abaixo para sobrepor o cálculo da IA.</p>
+
+                <div class="form-group">
+                    <label>Taxa Metabólica Basal (Calorias/Dia)</label>
+                    <input type="number" id="manual_calories" placeholder="Ex: 2200">
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Proteína (g)</label>
+                        <input type="number" id="manual_protein" placeholder="Ex: 160">
+                    </div>
+                    <div class="form-group">
+                        <label>Carboidratos (g)</label>
+                        <input type="number" id="manual_carbs" placeholder="Ex: 200">
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>Gorduras (g)</label>
+                        <input type="number" id="manual_fats" placeholder="Ex: 70">
+                    </div>
+                </div>
+                <div id="macro-validation-msg"
+                    style="display: none; font-size: 13px; font-weight: 700; margin-top: 10px; padding: 12px; border-radius: 12px; background: #fff; border: 1.5px solid #ddd; text-align: center;">
+                </div>
+                <p style="font-size: 11px; color: #999; margin-top: 5px;">* Deixe em branco para usar o cálculo
+                    automático.</p>
+            </div>
             <button type="submit" class="btn-primary" id="save-btn"
                 style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px;">
                 <i data-lucide="check-circle" style="width: 20px; height: 20px;"></i> Salvar Alterações
             </button>
             <button type="button" id="manage-billing-btn" class="btn-outline"
-                style="width: 100%; display: none; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; padding: 14px; border-radius: 12px; border: 1.5px solid #000; background: transparent; cursor: pointer; font-weight: 700;">
+                style="width: 100%; display: none; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; padding: 14px; border-radius: 12px; border: 1.5px solid #000; background: transparent; cursor: pointer; font-weight: 700; font-size: 16px;">
                 <i data-lucide="credit-card" style="width: 20px; height: 20px;"></i> Gerenciar Assinatura
             </button>
+            <a href="affiliate.html" class="btn-outline"
+                style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; padding: 14px; border-radius: 12px; border: 1.5px solid #000; background: #fff; color: #000; text-decoration: none; font-weight: 700; font-size: 16px;">
+                <i data-lucide="users" style="width: 20px; height: 20px;"></i> Seja um Afiliado
+            </a>
         </form>
     </div>
 
@@ -172,6 +214,9 @@
             selectedGoal = goal;
             console.log('Selecionado:', selectedGoal);
             updateGoalUI();
+            if (typeof window.suggestMacros === 'function') {
+                window.suggestMacros();
+            }
         };
 
         function updateGoalUI() {
@@ -203,6 +248,62 @@
                 document.getElementById('activity_level').value = profile.activity_level || 'light';
                 selectedGoal = profile.goal || 'maintain';
                 updateGoalUI();
+
+                // Carregar metas manuais
+                document.getElementById('manual_calories').value = profile.manual_calories || '';
+                document.getElementById('manual_protein').value = profile.manual_protein || '';
+                document.getElementById('manual_carbs').value = profile.manual_carbs || '';
+                document.getElementById('manual_fats').value = profile.manual_fats || '';
+
+                // Lógica de Pre-cálculo e Validação
+                const mCal = document.getElementById('manual_calories');
+                const mPro = document.getElementById('manual_protein');
+                const mCarb = document.getElementById('manual_carbs');
+                const mFat = document.getElementById('manual_fats');
+                const vMsg = document.getElementById('macro-validation-msg');
+
+                function validateMacros() {
+                    const cals = parseFloat(mCal.value) || 0;
+                    const pro = parseFloat(mPro.value) || 0;
+                    const carb = parseFloat(mCarb.value) || 0;
+                    const fat = parseFloat(mFat.value) || 0;
+
+                    if (!cals) { vMsg.style.display = 'none'; return; }
+
+                    const calcCals = (pro * 4) + (carb * 4) + (fat * 9);
+                    const pct = (calcCals / cals) * 100;
+                    vMsg.style.display = 'block';
+
+                    if (Math.abs(pct - 100) < 1) {
+                        vMsg.innerHTML = '✅ Macros perfeitos! 100% das calorias atingidas.';
+                        vMsg.style.color = '#10B981';
+                        vMsg.style.borderColor = '#10B981';
+                    } else {
+                        vMsg.innerHTML = `⚠️ Soma dos macros: ${Math.round(pct)}% das calorias. Ajuste para chegar a 100%.`;
+                        vMsg.style.color = '#F59E0B';
+                        vMsg.style.borderColor = '#F59E0B';
+                    }
+                }
+
+                window.suggestMacros = function () {
+                    const cals = parseFloat(mCal.value);
+                    if (!cals) { vMsg.style.display = 'none'; return; }
+
+                    let pP, cP, fP;
+                    if (selectedGoal === 'lose') { pP = 0.40; cP = 0.30; fP = 0.30; }
+                    else if (selectedGoal === 'gain') { pP = 0.25; cP = 0.50; fP = 0.25; }
+                    else { pP = 0.30; cP = 0.40; fP = 0.30; }
+
+                    mPro.value = Math.round((cals * pP) / 4);
+                    mCarb.value = Math.round((cals * cP) / 4);
+                    mFat.value = Math.round((cals * fP) / 9);
+                    validateMacros();
+                };
+
+                mCal.addEventListener('input', window.suggestMacros);
+
+                [mPro, mCarb, mFat].forEach(inp => inp.addEventListener('input', validateMacros));
+                if (mCal.value) validateMacros();
 
                 // Show Manage Billing button if user is premium
                 if (profile.plan === 'premium') {
@@ -248,6 +349,10 @@
                     height: parseInt(document.getElementById('height').value) || null,
                     activity_level: document.getElementById('activity_level').value,
                     goal: selectedGoal,
+                    manual_calories: parseFloat(document.getElementById('manual_calories').value) || null,
+                    manual_protein: parseFloat(document.getElementById('manual_protein').value) || null,
+                    manual_carbs: parseFloat(document.getElementById('manual_carbs').value) || null,
+                    manual_fats: parseFloat(document.getElementById('manual_fats').value) || null,
                     updated_at: new Date().toISOString()
                 };
 

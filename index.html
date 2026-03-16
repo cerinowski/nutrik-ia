@@ -12,6 +12,11 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="stylesheet" href="styles.css">
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) localStorage.setItem('nutrik_referred_by', ref);
+  </script>
 </head>
 
 <body>
@@ -144,7 +149,16 @@
               if (error) throw error;
               handleRedirect(data.user.id);
             } else if (currentMode === 'SIGNUP') {
-              const { data, error } = await supabase.auth.signUp({ email, password });
+              const refCode = localStorage.getItem('nutrik_referred_by') || null;
+              const { data, error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                  data: {
+                    referred_by: refCode
+                  }
+                }
+              });
               if (error) throw error;
               if (data.session) {
                 window.location.href = 'onboarding.html';

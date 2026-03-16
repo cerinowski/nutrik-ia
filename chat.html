@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="styles.css?v=3">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.css" />
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
 </head>
 
@@ -115,7 +116,10 @@
 
         <!-- Input Area -->
         <div class="chat-input-area">
-            <button class="icon-btn" title="Câmera" id="camera-btn">
+            <button class="icon-btn" title="Ler Código de Barras" id="barcode-btn">
+                <i data-lucide="scan-line"></i>
+            </button>
+            <button class="icon-btn" title="Analisar Foto do Prato" id="camera-btn">
                 <i data-lucide="camera"></i>
             </button>
             <button class="icon-btn" title="Anexar" id="attach-btn">
@@ -152,13 +156,38 @@
             <div class="modal-icon">
                 <i data-lucide="alert-circle" style="width: 32px; height: 32px; color: #F59E0B;"></i>
             </div>
-            <h2 class="modal-title">Atenção!</h2>
-            <p class="modal-text">Seus créditos limitados estão acabando. Assine o Premium para desbloquear recursos
-                avançados e ter acesso ilimitado!</p>
-            <a href="plans.html" class="btn-primary" style="margin-bottom: 12px;">Ver Planos Premium</a>
+            <h2 class="modal-title" style="font-size: 20px;">⚠️ Você está perto do seu limite gratuito</h2>
+            <p class="modal-text">A Nutrik.IA já analisou suas refeições de hoje.<br><br>Mas sem acompanhamento completo
+                você pode estar consumindo centenas de calorias extras sem perceber.</p>
+            <a href="plans.html" class="btn-primary" style="margin-bottom: 12px;">🔥Desbloqueie o Premium</a>
             <button id="close-popup-alt"
-                style="background: none; border: none; font-size: 14px; color: #666; cursor: pointer; text-decoration: underline; font-family: inherit; font-weight: 500;">Continuar
-                com limitações</button>
+                style="background: none; border: none; font-size: 12px; color: #666; cursor: pointer; text-decoration: underline; font-family: inherit; font-weight: 500;">Continuar
+                sem acompanhamento completo</button>
+        </div>
+    </div>
+
+    <!-- Barcode Scanner Modal -->
+    <div class="modal-overlay" id="barcode-scanner-modal"
+        style="display: none; z-index: 1000; align-items: center; justify-content: center;">
+        <div class="modal-content" style="max-width: 400px; padding: 20px; width: 90%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 style="font-size: 18px; display: flex; align-items: center; gap: 8px;"><i
+                        data-lucide="scan-line"></i> Leitor de Produtos</h2>
+                <button class="modal-close" id="close-barcode-modal" title="Fechar"
+                    style="position: static; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: #fff; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+                </button>
+            </div>
+            <div id="qr-reader"
+                style="width: 100%; border-radius: 12px; overflow: hidden; background: #000; min-height: 250px;"></div>
+            <div style="display: flex; justify-content: center; margin-top: 12px;">
+                <button id="switch-camera-btn"
+                    style="background: #000; color: #fff; border: none; padding: 8px 16px; border-radius: 20px; font-size: 13px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i> Trocar Lente (Foco)
+                </button>
+            </div>
+            <p id="barcode-status" style="text-align: center; margin-top: 12px; font-size: 13px; color: #666;">Aponte a
+                câmera traseira para o código de barras...</p>
         </div>
     </div>
 
@@ -438,6 +467,162 @@
         // Enter no teclado
         chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') handleSend();
+        });
+
+        // ==========================================
+        // BARCODE SCANNER LOGIC (Open Food Facts)
+        // ==========================================
+        const barcodeBtn = document.getElementById('barcode-btn');
+        const barcodeModal = document.getElementById('barcode-scanner-modal');
+        const closeBarcodeModal = document.getElementById('close-barcode-modal');
+        const barcodeStatus = document.getElementById('barcode-status');
+        const switchCameraBtn = document.getElementById('switch-camera-btn');
+        let html5QrcodeScanner = null;
+        let availableCameras = [];
+        let currentCameraIndex = 0;
+
+        function addSystemMessage(text) {
+            const id = 'sys-' + Date.now();
+            const div = document.createElement('div');
+            div.id = id;
+            div.style.cssText = "text-align: center; font-size: 12px; color: #666; margin: 8px 0;";
+            div.innerText = text;
+            messagesContainer.appendChild(div);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            return id;
+        }
+
+        function removeSystemMessage(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        function stopBarcodeScanner() {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.stop().then(() => {
+                    console.log("Scanner stopped");
+                }).catch(e => console.warn("Stop error:", e));
+                html5QrcodeScanner = null;
+            }
+            barcodeModal.classList.remove('active');
+            setTimeout(() => { barcodeModal.style.display = 'none'; }, 300);
+        }
+
+        async function startCamera(index) {
+            if (!availableCameras.length) return;
+
+            if (html5QrcodeScanner) {
+                try {
+                    await html5QrcodeScanner.stop();
+                    // Pequeno delay para o hardware liberar o recurso
+                    await new Promise(r => setTimeout(r, 100));
+                } catch (e) { console.warn("Erro ao parar camera anterior:", e); }
+            }
+
+            const html5Qrcode = new Html5Qrcode("qr-reader");
+            html5QrcodeScanner = html5Qrcode;
+            currentCameraIndex = index;
+
+            const selectedCam = availableCameras[index];
+            const camLabel = selectedCam.label || `Câmera ${index + 1}`;
+
+            const config = {
+                fps: 20,
+                qrbox: { width: 250, height: 150 },
+                aspectRatio: 1.0
+            };
+
+            barcodeStatus.innerText = `Ligando: ${camLabel}...`;
+
+            html5Qrcode.start(selectedCam.id, config, async (decodedText) => {
+                stopBarcodeScanner();
+                const toastId = addSystemMessage(`Buscando dados do produto (código: ${decodedText})...`);
+                try {
+                    const resp = await fetch(`https://world.openfoodfacts.org/api/v2/product/${decodedText}.json`);
+                    const data = await resp.json();
+
+                    if (data.status === 1) {
+                        const p = data.product;
+                        const name = p.product_name || p.generic_name || 'Produto desconhecido';
+                        const kcal = p.nutriments['energy-kcal_100g'] || p.nutriments['energy-kcal'] || 0;
+                        const carb = p.nutriments['carbohydrates_100g'] || p.nutriments['carbohydrates'] || 0;
+                        const prot = p.nutriments['proteins_100g'] || p.nutriments['proteins'] || 0;
+                        const fat = p.nutriments['fat_100g'] || p.nutriments['fat'] || 0;
+
+                        // Busca o conteúdo total (ex: 473ml) da lata
+                        const netContent = p.quantity || p.product_quantity || '';
+                        const servingSize = p.serving_size || '';
+                        const metaPortion = netContent ? `(Conteúdo total: ${netContent})` : (servingSize ? `(Porção: ${servingSize})` : '');
+
+                        let prefillMessage = `Escaneei o produto: ${name} ${metaPortion}. Ref 100g/ml: ${kcal} kcal, ${carb}g carb, ${prot}g prot, ${fat}g gord. Pode registrar que consumi o conteúdo total (ou 1 unidade) deste produto?`;
+                        chatInput.value = prefillMessage;
+                        removeSystemMessage(toastId);
+                        chatInput.focus();
+                    } else {
+                        removeSystemMessage(toastId);
+                        alert("Não encontrado no banco de dados.");
+                    }
+                } catch (e) {
+                    removeSystemMessage(toastId);
+                    alert("Erro ao consultar informações.");
+                }
+            }, () => { })
+                .then(() => {
+                    barcodeStatus.innerText = `Câmera Ativa: ${camLabel}. Caso não seja a traseira, clique em Trocar Lente.`;
+                })
+                .catch(err => {
+                    console.error(err);
+                    barcodeStatus.innerText = "Erro ao abrir esta lente. Tente a próxima clicando no botão.";
+                });
+        }
+
+        barcodeBtn.addEventListener('click', async () => {
+            const isPremium = window.currentUser?.plan === 'premium';
+            if (!isPremium) {
+                alert("O leitor inteligente de Código de Barras é um recurso exclusivo do Nutrik.IA Premium.");
+                return;
+            }
+
+            barcodeModal.style.display = 'flex';
+            setTimeout(async () => {
+                barcodeModal.classList.add('active');
+
+                try {
+                    availableCameras = await Html5Qrcode.getCameras();
+                    if (availableCameras && availableCameras.length > 0) {
+                        // Tentar achar a traseira heurística
+                        let startIndex = 0;
+                        availableCameras.forEach((cam, i) => {
+                            const lbl = cam.label.toLowerCase();
+                            if (lbl.includes("back") || lbl.includes("traseira") || lbl.includes("environment")) startIndex = i;
+                        });
+
+                        // No iPhone, geralmente as traseiras estão no final da lista
+                        if (startIndex === 0 && availableCameras.length > 1) {
+                            startIndex = availableCameras.length - 1;
+                        }
+
+                        startCamera(startIndex);
+                    } else {
+                        barcodeStatus.innerText = "Nenhuma câmera encontrada.";
+                    }
+                } catch (err) {
+                    barcodeStatus.innerText = "Erro nas permissões de câmera.";
+                }
+            }, 50);
+        });
+
+        switchCameraBtn.addEventListener('click', () => {
+            if (availableCameras.length > 1) {
+                let nextIndex = (currentCameraIndex + 1) % availableCameras.length;
+                startCamera(nextIndex);
+            } else {
+                alert("Seu aparelho reportou apenas uma câmera disponível.");
+            }
+        });
+
+        closeBarcodeModal.addEventListener('click', () => {
+            stopBarcodeScanner();
         });
     </script>
     <script type="module" src="config.js"></script>

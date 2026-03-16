@@ -9,7 +9,8 @@ ADD COLUMN IF NOT EXISTS target_weight FLOAT,
 ADD COLUMN IF NOT EXISTS height INTEGER,
 ADD COLUMN IF NOT EXISTS goal TEXT, -- 'lose', 'gain', 'maintain'
 ADD COLUMN IF NOT EXISTS activity_level TEXT,
-ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE;
+ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP WITH TIME ZONE;
 
 -- 2. Criar Tabela de Histórico de Peso
 CREATE TABLE IF NOT EXISTS public.weight_history (

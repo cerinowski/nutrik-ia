@@ -200,20 +200,21 @@
                     activity_level: document.getElementById('activity_level').value,
                     goal: selectedGoal,
                     onboarding_completed: true,
+                    referred_by: localStorage.getItem('nutrik_referred_by') || null,
                     updated_at: new Date().toISOString()
                 };
 
                 try {
                     // Update profile
-                    const { error: pError } = await supabase.from('profiles').upsert(profileData);
+                    const { error: pError } = await window.supabaseClient.from('profiles').upsert(profileData);
                     if (pError) throw pError;
 
                     // Save initial weight to history
-                    const { error: wError } = await supabase.from('weight_history').insert({
+                    const { error: wError } = await window.supabaseClient.from('weight_history').insert({
                         user_id: session.user.id,
                         weight: profileData.current_weight
                     });
-                    window.location.href = 'plans.html?offer=true'; // Upsell na entrada
+                    window.location.href = 'plans.html?trial=true'; // Iniciando fluxo de teste grátis na entrada
                 } catch (err) {
                     alert('Erro ao salvar: ' + err.message);
                     btn.textContent = 'Finalizar Perfil ⚡';

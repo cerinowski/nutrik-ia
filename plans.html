@@ -13,6 +13,93 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="stylesheet" href="styles.css">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Padronização absoluta de ícones */
+        .feature-item i,
+        .feature-item svg,
+        .feature-item [data-lucide] {
+            width: 20px !important;
+            height: 20px !important;
+            min-width: 20px !important;
+            min-height: 20px !important;
+            display: inline-flex !important;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0 !important;
+        }
+
+        /* Melhoria no Modal de Trial */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(8px);
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .trial-modal {
+            background: white;
+            padding: 40px;
+            border-radius: 32px;
+            max-width: 450px;
+            width: 100%;
+            text-align: center;
+            border: 2px solid #000;
+            position: relative;
+            animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .trial-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .trial-title {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 12px;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .trial-desc {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        .trial-highlight {
+            background: var(--primary);
+            color: #000;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 800;
+        }
+    </style>
 </head>
 
 <body>
@@ -73,6 +160,8 @@
                     <div class="feature-item disabled"><i data-lucide="x"></i> <span><strong>Extração Automática de
                                 Macros:</strong> Envie foto da sua refeição no chat, e ele calcula e manda seus macros
                             os somando sozinhos na sua Dashboard Premium.</span></div>
+                    <div class="feature-item disabled"><i data-lucide="x"></i> <span><strong>Leitor de Código de
+                                Barras:</strong> Escaneie latas e embalagens para registro instantâneo.</span></div>
                 </div>
 
                 <a href="dashboard.html" class="btn-outline" style="margin-top: auto;">Sair e Voltar para o App</a>
@@ -114,6 +203,62 @@
                             Análises instantâneas 24h</span></div>
                     <div class="feature-item"><i data-lucide="check-circle-2"></i> <span>Auto-Adaptação de Cardápio (A
                             IA aprende seus gostos pessoais)</span></div>
+                    <div class="feature-item" style="
+                        background: linear-gradient(135deg, #111, #333); 
+                        padding: 20px; 
+                        border-radius: 16px; 
+                        border: 2px solid var(--primary); 
+                        margin-top: 10px;
+                        position: relative;
+                        overflow: hidden;
+                        box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+                        transform: scale(1.02);
+                        animation: pulse-border 2s infinite;
+                    ">
+                        <div style="
+                            position: absolute; 
+                            top: -10px; 
+                            right: -10px; 
+                            background: var(--primary); 
+                            color: #000; 
+                            font-weight: 900; 
+                            font-size: 10px; 
+                            padding: 4px 12px; 
+                            transform: rotate(15deg);
+                            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+                        ">NOVIDADE</div>
+
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div
+                                style="background: var(--primary); padding: 10px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                                <i data-lucide="barcode" style="color: #000; width: 20px; height: 20px;"></i>
+                            </div>
+                            <div style="flex: 1;">
+                                <span
+                                    style="color: #fff; font-weight: 700; font-size: 15px; display: block; margin-bottom: 4px;">Leitor
+                                    de Código de Barras</span>
+                                <span
+                                    style="color: #9CA3AF; font-size: 12px; line-height: 1.4; display: block;">Escaneie
+                                    batendo o olho nos macros e calorias exatas do rótulo!</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <style>
+                        @keyframes pulse-border {
+                            0% {
+                                box-shadow: 0 0 0 0 rgba(212, 255, 0, 0.4);
+                            }
+
+                            70% {
+                                box-shadow: 0 0 0 10px rgba(212, 255, 0, 0);
+                            }
+
+                            100% {
+                                box-shadow: 0 0 0 0 rgba(212, 255, 0, 0);
+                            }
+                        }
+                    </style>
                 </div>
 
                 <a href="#" id="btn-premium" class="btn-primary"
@@ -121,6 +266,26 @@
                     Premium</a>
             </div>
 
+        </div>
+    </div>
+
+    <!-- Trial Modal -->
+    <div class="modal-overlay" id="trial-modal-overlay">
+        <div class="trial-modal">
+            <span class="trial-icon">🎁</span>
+            <h2 class="trial-title">VOCÊ GANHOU!</h2>
+            <p class="trial-desc">
+                Identificamos seu perfil e você acaba de liberar <span class="trial-highlight">3 dias de acesso
+                    PREMIUM</span> por nossa conta!
+                <br><br>
+                Aproveite todas as funções agora. Você só será cobrado se decidir continuar após o teste.
+            </p>
+            <button id="btn-start-trial" class="btn-primary" style="width: 100%; font-size: 18px; padding: 20px;">
+                Começar meu Teste Grátis ⚡
+            </button>
+            <p style="font-size: 12px; color: #999; margin-top: 15px;">
+                * Cartão necessário para validação. Cancele quando quiser no Painel.
+            </p>
         </div>
     </div>
 
@@ -169,53 +334,77 @@
                 pAmount.style.color = 'var(--primary)';
             }
 
+            // Check for trial param
+            const urlParams = new URLSearchParams(window.location.search);
+            const isTrialFlow = urlParams.get('trial') === 'true';
+
+            if (isTrialFlow) {
+                const trialModal = document.getElementById('trial-modal-overlay');
+                if (trialModal) trialModal.classList.add('active');
+            }
+
             // Handle Stripe Checkout
+            async function handleCheckout(isTrial = false, btn = null) {
+                if (!currentUser) {
+                    alert('Por favor, faça login primeiro!');
+                    return;
+                }
+
+                const button = btn || document.getElementById('btn-premium');
+                const originalText = button.textContent;
+
+                button.textContent = 'Iniciando...';
+                button.style.pointerEvents = 'none';
+                button.style.opacity = '0.7';
+
+                try {
+                    const response = await fetch('/api/checkout-session', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            email: currentUser.email,
+                            userId: currentUser.id,
+                            offer: activeOffer,
+                            trial: isTrial
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Erro ao gerar pagamento');
+                    }
+
+                    const { url } = await response.json();
+
+                    if (url) {
+                        window.location.href = url;
+                    } else {
+                        throw new Error('URL de checkout não retornada.');
+                    }
+                } catch (error) {
+                    console.error('Erro de Checkout:', error);
+                    alert('Erro ao carregar o pagamento. Tente novamente mais tarde.');
+                    button.textContent = originalText;
+                    button.style.pointerEvents = 'auto';
+                    button.style.opacity = '1';
+                }
+            }
+
             const btnPremium = document.getElementById('btn-premium');
             if (btnPremium) {
-                btnPremium.addEventListener('click', async (e) => {
+                btnPremium.addEventListener('click', (e) => {
                     e.preventDefault();
-                    if (!currentUser) {
-                        alert('Por favor, faça login primeiro!');
-                        return;
-                    }
+                    handleCheckout(false, btnPremium);
+                });
+            }
 
-                    btnPremium.textContent = 'Aguarde...';
-                    btnPremium.style.pointerEvents = 'none';
-                    btnPremium.style.opacity = '0.7';
-
-                    try {
-                        const response = await fetch('/api/checkout-session', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                email: currentUser.email,
-                                userId: currentUser.id,
-                                offer: activeOffer
-                            })
-                        });
-
-                        if (!response.ok) {
-                            const errorData = await response.json();
-                            throw new Error(errorData.error || 'Erro ao gerar pagamento');
-                        }
-
-                        const { url } = await response.json();
-
-                        // Redirect to Stripe Checkout
-                        if (url) {
-                            window.location.href = url;
-                        } else {
-                            throw new Error('URL de checkout não retornada.');
-                        }
-                    } catch (error) {
-                        console.error('Erro de Checkout:', error);
-                        alert('Erro ao carregar o pagamento. Tente novamente mais tarde.');
-                        btnPremium.textContent = 'Assinar Premium';
-                        btnPremium.style.pointerEvents = 'auto';
-                        btnPremium.style.opacity = '1';
-                    }
+            const btnTrial = document.getElementById('btn-start-trial');
+            if (btnTrial) {
+                btnTrial.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    handleCheckout(true, btnTrial);
                 });
             }
         }

@@ -36,10 +36,27 @@ app.post(['/api/webhook', '/webhook/stripe'], express.raw({ type: 'application/j
 
         if (userId) {
             console.log(`💰 Pagamento recebido para userId: ${userId}. Atualizando plano...`);
+
+            const updateData = { plan: 'premium', credits: 99999 };
+
+            // Se for um trial, vamos marcar a data de término no perfil
+            // No Stripe Checkout, se houver trial, a subscription terá um trial_end
+            if (session.subscription) {
+                try {
+                    const subscription = await stripe.subscriptions.retrieve(session.subscription);
+                    if (subscription && subscription.trial_end) {
+                        updateData.trial_ends_at = new Date(subscription.trial_end * 1000).toISOString();
+                        console.log(`[TRIAL] Data de término definida para: ${updateData.trial_ends_at}`);
+                    }
+                } catch (err) {
+                    console.error("Erro ao buscar detalhes da subscription para trial:", err);
+                }
+            }
+
             // Update Supabase
             const { error } = await supabaseAdmin
                 .from('profiles')
-                .update({ plan: 'premium', credits: 99999 }) // O Supabase não aceita null nesta coluna
+                .update(updateData)
                 .eq('id', userId);
 
             if (error) {
@@ -82,10 +99,26 @@ app.use(express.json({ limit: '50mb' }));
 
 app.post('/api/checkout-session', async (req, res) => {
     try {
-        const { email, userId, offer } = req.body;
+        const { email, userId, offer, trial } = req.body;
 
         if (!userId) {
             return res.status(400).json({ error: "userId obrigatório." });
+        }
+
+        // Busca o perfil atual para ver se tem referred_by
+        let stripeAccountIdToTransfer = null;
+        try {
+            const { data: profile } = await supabaseAdmin.from('profiles').select('referred_by').eq('id', userId).single();
+            if (profile && profile.referred_by) {
+                // Busca o perfil do afiliado
+                const { data: affiliate } = await supabaseAdmin.from('profiles').select('stripe_account_id').eq('affiliate_code', profile.referred_by).single();
+                if (affiliate && affiliate.stripe_account_id) {
+                    stripeAccountIdToTransfer = affiliate.stripe_account_id;
+                    console.log(`[AFILIADOS] Compra detectada com ref ${profile.referred_by}. Comissão irá para ${stripeAccountIdToTransfer}`);
+                }
+            }
+        } catch (e) {
+            console.error("Erro ao verificar afiliado no checkout:", e);
         }
 
         const origin = req.headers.origin || 'https://nutrik-ia.vercel.app'; // Fallback ajeitado caso origin venha vazio
@@ -120,6 +153,33 @@ app.post('/api/checkout-session', async (req, res) => {
                 userId: userId
             }
         };
+
+        // Configuração de Trial (Teste Grátis)
+        if (trial) {
+            if (!sessionConfig.subscription_data) sessionConfig.subscription_data = {};
+            sessionConfig.subscription_data.trial_period_days = 3;
+            console.log(`[STRIPE] Criando checkout com TRIAL de 3 dias para ${userId}`);
+        }
+
+        if (stripeAccountIdToTransfer) {
+            try {
+                // Stripe proibe criar checkout com destination para contas restritas.
+                // Precisamos garantir que eles conseguem receber (transfers_enabled).
+                const account = await stripe.accounts.retrieve(stripeAccountIdToTransfer);
+                if (account && account.transfers_enabled && account.charges_enabled) {
+                    // Repassa 30% da assinatura para o afiliado (automático)
+                    if (!sessionConfig.subscription_data) sessionConfig.subscription_data = {};
+                    sessionConfig.subscription_data.transfer_data = {
+                        destination: stripeAccountIdToTransfer,
+                        amount_percent: 30.0,
+                    };
+                } else {
+                    console.warn(`[AFILIADOS] A conta Stripe ${stripeAccountIdToTransfer} está restrita/incompleta. Comissão será ignorada.`);
+                }
+            } catch (err) {
+                console.error("Erro ao verificar conta do afiliado:", err);
+            }
+        }
 
         if (discounts.length > 0) {
             sessionConfig.discounts = discounts;
@@ -165,6 +225,96 @@ app.post('/api/create-portal-session', async (req, res) => {
     } catch (error) {
         console.error("Erro ao criar Stripe Portal Session:", error);
         res.status(500).json({ error: error.message });
+    }
+});
+
+// --- SISTEMA DE AFILIADOS ---
+
+app.post('/api/affiliate/generate', async (req, res) => {
+    try {
+        const { userId, email } = req.body;
+        if (!userId) return res.status(400).json({ error: "userId obrigatório." });
+
+        const baseStr = (email ? email.split('@')[0] : 'user').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const randomNum = Math.floor(1000 + Math.random() * 9000);
+        const code = `${baseStr}${randomNum}`;
+
+        const { error } = await supabaseAdmin.from('profiles').update({ affiliate_code: code }).eq('id', userId);
+        if (error) throw error;
+
+        res.json({ code });
+    } catch (err) {
+        console.error("Erro ao gerar afiliado:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/affiliate/onboard', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        if (!userId) return res.status(400).json({ error: "userId obrigatório." });
+
+        const origin = req.headers.origin || 'https://nutrik-ia.vercel.app';
+
+        let { data: profile } = await supabaseAdmin.from('profiles').select('*').eq('id', userId).single();
+        if (!profile) return res.status(404).json({ error: "Perfil não encontrado." });
+
+        let accountId = profile.stripe_account_id;
+
+        if (!accountId) {
+            const account = await stripe.accounts.create({
+                type: 'express',
+                email: profile.email,
+                capabilities: {
+                    transfers: { requested: true },
+                    card_payments: { requested: true }
+                },
+                business_type: 'individual',
+            });
+            accountId = account.id;
+            await supabaseAdmin.from('profiles').update({ stripe_account_id: accountId }).eq('id', userId);
+        }
+
+        const accountLink = await stripe.accountLinks.create({
+            account: accountId,
+            refresh_url: `${origin}/affiliate.html`,
+            return_url: `${origin}/affiliate.html`,
+            type: 'account_onboarding',
+        });
+
+        res.json({ url: accountLink.url });
+    } catch (err) {
+        console.error("Erro no Stripe Onboard:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/affiliate/dashboard', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        if (!userId) return res.status(400).json({ error: "userId obrigatório." });
+
+        let { data: profile } = await supabaseAdmin.from('profiles').select('stripe_account_id').eq('id', userId).single();
+        if (!profile || !profile.stripe_account_id) return res.status(404).json({ error: "Conta não encontrada." });
+
+        try {
+            // Se a conta já estiver 100% OK, isso gera o link pro painel financeiro deles
+            const loginLink = await stripe.accounts.createLoginLink(profile.stripe_account_id);
+            res.json({ url: loginLink.url });
+        } catch (e) {
+            // Se der erro (ex: conta restrita aguardando doc), mandamos pro onboarding pra eles terminarem
+            const origin = req.headers.origin || 'https://nutrik-ia.vercel.app';
+            const accountLink = await stripe.accountLinks.create({
+                account: profile.stripe_account_id,
+                refresh_url: `${origin}/affiliate.html`,
+                return_url: `${origin}/affiliate.html`,
+                type: 'account_onboarding',
+            });
+            res.json({ url: accountLink.url });
+        }
+    } catch (err) {
+        console.error("Erro no Stripe Dashboard:", err);
+        res.status(500).json({ error: err.message });
     }
 });
 

@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover">
+    <title>Nutrik.IA - Afiliados</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/png" href="/favicon.png?v=2">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .affiliate-card {
+            max-width: 500px;
+            margin: 40px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            border: 1.5px solid #000;
+        }
+
+        .info-box {
+            background: rgba(204, 255, 0, 0.1);
+            border: 1.5px dashed var(--primary);
+            padding: 20px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .link-box {
+            background: #f9f9f9;
+            border: 1.5px solid #e0e0e0;
+            padding: 16px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 14px;
+        }
+
+        .btn-copy {
+            background: var(--primary);
+            border: 1.5px solid #000;
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+            margin-left: 12px;
+        }
+    </style>
+</head>
+
+<body style="background: #F9FAFB;">
+    <header class="app-header">
+        <div class="logo-container compact">
+            <span class="logo-text">nutrik</span>
+            <span class="logo-bubble">.ia</span>
+        </div>
+        <div class="nav-actions">
+            <a href="profile.html" class="btn-chat-nav" style="background: #F3F4F6; color: #000;">
+                <i data-lucide="arrow-left" style="width: 18px; height: 18px;"></i> Voltar
+            </a>
+        </div>
+    </header>
+
+    <div class="affiliate-card">
+        <h1 style="font-family: 'Outfit'; margin-bottom: 12px; display: flex; align-items: center; gap: 12px;">
+            <i data-lucide="users" style="color: var(--primary);"></i> Programa de Afiliados
+        </h1>
+        <p style="color: #666; margin-bottom: 24px; font-size: 14px; line-height: 1.5;">Indique o Nutrik.IA para seus
+            amigos ou seguidores
+            e ganhe <strong style="color: #000;">30% de comissão</strong> automática direto na sua conta bancária a cada
+            nova assinatura Premium!
+        </p>
+
+        <div id="loading" style="text-align: center; padding: 40px; color: #666;">
+            <i data-lucide="loader-2" style="width: 32px; height: 32px; animation: spin 1s linear infinite;"></i>
+            <p>Carregando dados...</p>
+        </div>
+
+        <div id="step-generate" style="display: none;">
+            <div class="info-box">
+                <i data-lucide="rocket" style="width: 40px; height: 40px; color: #000; margin-bottom: 12px;"></i>
+                <h3 style="margin-bottom: 8px;">Crie seu Link Exclusivo</h3>
+                <p style="font-size: 13px; color: #555;">Gere seu código único para rastrear todas as suas vendas de
+                    forma automática.</p>
+            </div>
+            <button id="btn-generate" class="btn-primary"
+                style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px;">
+                <i data-lucide="link"></i> Gerar Meu Link de Afiliado
+            </button>
+        </div>
+
+        <div id="step-onboard" style="display: none;">
+            <div class="info-box" style="background: #FFF3CD; border-color: #FFEEBA;">
+                <i data-lucide="wallet" style="width: 40px; height: 40px; color: #856404; margin-bottom: 12px;"></i>
+                <h3 style="margin-bottom: 8px; color: #856404;">Onde você quer receber?</h3>
+                <p style="font-size: 13px; color: #856404;">Seu link já está pronto! Mas antes de divulgar, você precisa
+                    cadastrar sua conta bancária na Stripe (nossa parceira de pagamentos) para receber as comissões.</p>
+            </div>
+            <button id="btn-stripe" class="btn-primary"
+                style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; background: #635BFF; color: white;">
+                <i data-lucide="credit-card"></i> Cadastrar Banco Seguramente (Stripe)
+            </button>
+        </div>
+
+        <div id="step-active" style="display: none;">
+            <h3 style="margin-bottom: 12px; font-size: 16px;">Seu Link de Indicações:</h3>
+            <div class="link-box">
+                <span id="affiliate-link-text">https://nutrikia.com.br/?ref=USER123</span>
+                <button id="btn-copy-link" class="btn-copy" title="Copiar">
+                    <i data-lucide="copy" style="width: 16px; height: 16px;"></i> Copiar
+                </button>
+            </div>
+            <div
+                style="background: #f0fdf4; border: 1.5px dashed #22c55e; padding: 16px; border-radius: 12px; margin-bottom: 16px;">
+                <p style="color: #166534; font-size: 13px; margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="check-circle" style="width: 20px; height: 20px; color: #22c55e;"></i>
+                    Conta Stripe vinculada.
+                </p>
+            </div>
+
+            <button id="btn-stripe-dashboard" class="btn-primary"
+                style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; background: #635BFF; color: white;">
+                <i data-lucide="external-link"></i> Acessar Meu Painel Financeiro
+            </button>
+        </div>
+
+    </div>
+
+    <script type="module" src="config.js"></script>
+    <script>
+        lucide.createIcons();
+
+        let currentUser = null;
+        let userProfile = null;
+
+        async function initAffiliate() {
+            if (!window.supabaseClient) {
+                setTimeout(initAffiliate, 50);
+                return;
+            }
+
+            const supabase = window.supabaseClient;
+            const { data: { session } } = await supabase.auth.getSession();
+
+            if (!session) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            currentUser = session.user;
+            await loadProfileData(supabase);
+        }
+
+        async function loadProfileData(supabase) {
+            const { data: profile } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single();
+            userProfile = profile;
+
+            document.getElementById('loading').style.display = 'none';
+
+            if (!profile.affiliate_code) {
+                document.getElementById('step-generate').style.display = 'block';
+            } else if (!profile.stripe_account_id) {
+                document.getElementById('step-onboard').style.display = 'block';
+            } else {
+                document.getElementById('step-active').style.display = 'block';
+                const link = `${window.location.origin}/?ref=${profile.affiliate_code}`;
+                document.getElementById('affiliate-link-text').textContent = link;
+            }
+        }
+
+        document.getElementById('btn-generate').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-generate');
+            btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Gerando...';
+            btn.disabled = true;
+            lucide.createIcons();
+
+            try {
+                const response = await fetch('/api/affiliate/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentUser.id, email: currentUser.email })
+                });
+
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    const data = await response.json();
+                    alert(data.error || 'Erro ao gerar link.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de conexão.');
+            } finally {
+                btn.innerHTML = '<i data-lucide="link"></i> Gerar Meu Link de Afiliado';
+                btn.disabled = false;
+                lucide.createIcons();
+            }
+        });
+
+        document.getElementById('btn-stripe').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-stripe');
+            btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Conectando...';
+            btn.disabled = true;
+            lucide.createIcons();
+
+            try {
+                const response = await fetch('/api/affiliate/onboard', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentUser.id })
+                });
+
+                const data = await response.json();
+                if (data.url) {
+                    window.location.href = data.url;
+                } else {
+                    alert(data.error || 'Erro ao conectar com a Stripe.');
+                    btn.innerHTML = '<i data-lucide="credit-card"></i> Cadastrar Banco Seguramente (Stripe)';
+                    btn.disabled = false;
+                    lucide.createIcons();
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de conexão ao portal.');
+                btn.innerHTML = '<i data-lucide="credit-card"></i> Cadastrar Banco Seguramente (Stripe)';
+                btn.disabled = false;
+                lucide.createIcons();
+            }
+        });
+
+        document.getElementById('btn-copy-link').addEventListener('click', () => {
+            const linkText = document.getElementById('affiliate-link-text').textContent;
+            navigator.clipboard.writeText(linkText).then(() => {
+                const btn = document.getElementById('btn-copy-link');
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i data-lucide="check" style="width: 16px; height: 16px;"></i> Copiado!';
+                lucide.createIcons();
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    lucide.createIcons();
+                }, 2000);
+            });
+        });
+
+        document.getElementById('btn-stripe-dashboard')?.addEventListener('click', async () => {
+            const btn = document.getElementById('btn-stripe-dashboard');
+            btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Carregando...';
+            btn.disabled = true;
+            lucide.createIcons();
+
+            try {
+                const response = await fetch('/api/affiliate/dashboard', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentUser.id })
+                });
+
+                const data = await response.json();
+                if (data.url) {
+                    window.location.href = data.url;
+                } else {
+                    alert(data.error || 'Erro ao conectar. Tente novamente.');
+                    btn.innerHTML = '<i data-lucide="external-link"></i> Acessar Meu Painel Financeiro';
+                    btn.disabled = false;
+                    lucide.createIcons();
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de conexão ao portal.');
+                btn.innerHTML = '<i data-lucide="external-link"></i> Acessar Meu Painel Financeiro';
+                btn.disabled = false;
+                lucide.createIcons();
+            }
+        });
+
+        initAffiliate();
+    </script>
+    <style>
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</body>
+
+</html>
