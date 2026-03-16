@@ -186,6 +186,29 @@
             style="text-decoration: underline; color: #000; font-weight: 800; margin-left: 4px;">Pegar meu link</span>
     </a>
 
+    <!-- Trial Incentive (Existing Users) -->
+    <a href="plans.html?trial=true" id="trial-incentive-banner"
+        style="display: none; background: linear-gradient(135deg, #FFD700, #FFA500); color: #000; text-align: center; padding: 14px; font-size: 14px; font-weight: 800; text-decoration: none; border-bottom: 2px solid #000; width: 100%; animation: pulse-gold 2s infinite;">
+        🎁 VOCÊ GANHOU 3 DIAS PREMIUM GRÁTIS! <span style="text-decoration: underline; margin-left: 8px;">Resgatar meu
+            presente agora ⚡</span>
+    </a>
+
+    <style>
+        @keyframes pulse-gold {
+            0% {
+                background-color: #FFD700;
+            }
+
+            50% {
+                background-color: #FFEC8B;
+            }
+
+            100% {
+                background-color: #FFD700;
+            }
+        }
+    </style>
+
     <div class="dashboard-grid">
         <div class="card card-full"
             style="background: #000; color: #fff; display: flex; justify-content: space-between; align-items: center;">
@@ -523,6 +546,10 @@
             } else {
                 const globalBanner = document.getElementById('dashboard-premium-banner');
                 if (globalBanner) globalBanner.style.display = 'block';
+
+                // Mostrar o banner de incentivo ao Trial para usuários Free
+                const trialIncentive = document.getElementById('trial-incentive-banner');
+                if (trialIncentive) trialIncentive.style.display = 'block';
 
                 // Show Popup for Free Users (only once per session for better UX, or always if prefered. Let's show always for now as requested or check sessionStorage)
                 if (!sessionStorage.getItem('freePopupShown')) {

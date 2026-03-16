@@ -334,14 +334,27 @@
                 pAmount.style.color = 'var(--primary)';
             }
 
-            // Check for trial param
-            const urlParams = new URLSearchParams(window.location.search);
-            const isTrialFlow = urlParams.get('trial') === 'true';
+            // Fetch profile to check plan status
+            async function checkPlanAndShowTrial() {
+                if (!currentUser) return;
 
-            if (isTrialFlow) {
-                const trialModal = document.getElementById('trial-modal-overlay');
-                if (trialModal) trialModal.classList.add('active');
+                try {
+                    const { data: profile } = await supabase.from('profiles').select('plan').eq('id', currentUser.id).single();
+
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const isTrialFlow = urlParams.get('trial') === 'true';
+
+                    // Mostrar o modal se vier do fluxo de trial OU se for usuário Free (para antigos verem a oferta)
+                    if (isTrialFlow || (profile && profile.plan === 'free')) {
+                        const trialModal = document.getElementById('trial-modal-overlay');
+                        if (trialModal) trialModal.classList.add('active');
+                    }
+                } catch (err) {
+                    console.error("Erro ao verificar plano para trial:", err);
+                }
             }
+
+            checkPlanAndShowTrial();
 
             // Handle Stripe Checkout
             async function handleCheckout(isTrial = false, btn = null) {
